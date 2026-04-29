@@ -9,6 +9,7 @@ export type TerminalSession = {
   profileId?: string
   status: TerminalStatus
   customTitle: boolean
+  logPath?: string
 }
 
 export type TerminalProfile = {
@@ -57,7 +58,15 @@ export type TerminalExitEvent = {
   signal?: number
 }
 
+export type TerminalLogEntry = {
+  name: string
+  path: string
+  size: number
+  modifiedAt: string
+}
+
 export type WorkspaceState = {
+  cwd?: string
   layout?: unknown
   terminals: TerminalSession[]
 }
@@ -69,14 +78,21 @@ export type SmartShellApi = {
     write(request: TerminalWriteRequest): Promise<void>
     resize(request: TerminalResizeRequest): Promise<void>
     kill(id: string): Promise<void>
+    restart(id: string): Promise<TerminalSession>
     rename(request: TerminalRenameRequest): Promise<TerminalSession>
+    listLogs(): Promise<TerminalLogEntry[]>
+    openLog(id: string): Promise<void>
+    openLogFile(path: string): Promise<void>
     onData(callback: (event: TerminalDataEvent) => void): () => void
     onExit(callback: (event: TerminalExitEvent) => void): () => void
   }
   profiles: {
     list(): Promise<TerminalProfile[]>
+    save(profiles: TerminalProfile[]): Promise<TerminalProfile[]>
   }
   workspace: {
+    getDefaultCwd(): Promise<string>
+    selectFolder(): Promise<string | undefined>
     load(): Promise<WorkspaceState>
     save(workspace: WorkspaceState): Promise<void>
   }

@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import type {
   CreateTerminalRequest,
   TerminalRenameRequest,
@@ -35,12 +35,53 @@ export function registerIpcHandlers(
     ptyManager.kill(id)
   })
 
+  ipcMain.handle('terminal:restart', (_event, id: string) => {
+    return ptyManager.restart(id)
+  })
+
   ipcMain.handle('terminal:rename', (_event, request: TerminalRenameRequest) => {
     return ptyManager.rename(request.id, request.title)
   })
 
+  ipcMain.handle('terminal:list-logs', () => {
+    return ptyManager.listLogs()
+  })
+
+  ipcMain.handle('terminal:open-log', async (_event, id: string) => {
+    const logPath = ptyManager.getLogPath(id)
+    if (!logPath) return
+
+    const error = await shell.openPath(logPath)
+    if (error) {
+      throw new Error(error)
+    }
+  })
+
+  ipcMain.handle('terminal:open-log-file', async (_event, logPath: string) => {
+    if (!ptyManager.isLogPath(logPath)) {
+      throw new Error('Log path is outside the SmartShell log directory')
+    }
+
+    const error = await shell.openPath(logPath)
+    if (error) {
+      throw new Error(error)
+    }
+  })
+
   ipcMain.handle('profiles:list', () => {
     return profileManager.list()
+  })
+
+  ipcMain.handle('profiles:save', (_event, profiles) => {
+    return profileManager.save(profiles)
+  })
+
+  ipcMain.handle('workspace:get-default-cwd', () => {
+    return workspaceManager.getDefaultCwd()
+  })
+
+  ipcMain.handle('workspace:select-folder', () => {
+    return workspaceManager.selectFolder()
   })
 
   ipcMain.handle('workspace:load', () => {

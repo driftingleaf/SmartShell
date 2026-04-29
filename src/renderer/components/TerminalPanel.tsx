@@ -1,7 +1,8 @@
-import { type ReactElement, useEffect, useRef } from 'react'
+import { type ReactElement, useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import type { IDockviewPanelProps } from 'dockview'
+import { useTerminalStore } from '@renderer/store/terminalStore'
 import { TerminalHeader } from './TerminalHeader'
 import '@xterm/xterm/css/xterm.css'
 
@@ -13,6 +14,10 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const restartTerminal = useTerminalStore((state) => state.restartTerminal)
+  const duplicateTerminal = useTerminalStore((state) => state.duplicateTerminal)
+  const closeTerminal = useTerminalStore((state) => state.closeTerminal)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const sessionId = props.params.sessionId
 
   useEffect(() => {
@@ -73,10 +78,42 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
     }
   }, [sessionId])
 
+  const copySelection = async (): Promise<void> => {
+    const selection = terminalRef.current?.getSelection()
+    if (selection) {
+      await navigator.clipboard.writeText(selection)
+    }
+  }
+
+  const pasteClipboard = async (): Promise<void> => {
+    const text = await navigator.clipboard.readText()
+    if (text) {
+      await window.smartShell.terminal.write({ id: sessionId, data: text })
+    }
+  }
+
   return (
-    <div className="terminal-panel-shell">
+    <div className="terminal-panel-shell" onClick={() => setMenu(null)}>
       <TerminalHeader sessionId={sessionId} />
-      <div ref={containerRef} className="terminal-panel" />
+      <div
+        ref={containerRef}
+        className="terminal-panel"
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setMenu({ x: event.clientX, y: event.clientY })
+        }}
+      />
+      {menu && (
+        <div className="terminal-context-menu" style={{ left: menu.x, top: menu.y }}>
+          <button type="button" onClick={() => void copySelection()}>Copy</button>
+          <button type="button" onClick={() => void pasteClipboard()}>Paste</button>
+          <button type="button" onClick={() => terminalRef.current?.clear()}>Clear</button>
+          <hr />
+          <button type="button" onClick={() => void restartTerminal(sessionId)}>Restart</button>
+          <button type="button" onClick={() => void duplicateTerminal(sessionId)}>Duplicate</button>
+          <button type="button" onClick={() => void closeTerminal(sessionId)}>Close</button>
+        </div>
+      )}
     </div>
   )
 }

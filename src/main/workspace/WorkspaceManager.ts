@@ -1,11 +1,24 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import { app } from 'electron'
+import { app, dialog } from 'electron'
 import type { WorkspaceState } from '@shared/types'
 
 export class WorkspaceManager {
   private get filePath(): string {
     return path.join(app.getPath('userData'), 'workspace.json')
+  }
+
+  getDefaultCwd(): string {
+    return process.cwd()
+  }
+
+  async selectFolder(): Promise<string | undefined> {
+    const result = await dialog.showOpenDialog({
+      title: 'Open Workspace Folder',
+      properties: ['openDirectory']
+    })
+
+    return result.canceled ? undefined : result.filePaths[0]
   }
 
   async load(): Promise<WorkspaceState> {

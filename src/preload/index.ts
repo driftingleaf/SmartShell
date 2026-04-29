@@ -17,7 +17,11 @@ const api: SmartShellApi = {
     write: (request: TerminalWriteRequest) => ipcRenderer.invoke('terminal:write', request),
     resize: (request: TerminalResizeRequest) => ipcRenderer.invoke('terminal:resize', request),
     kill: (id: string) => ipcRenderer.invoke('terminal:kill', id),
+    restart: (id: string) => ipcRenderer.invoke('terminal:restart', id),
     rename: (request: TerminalRenameRequest) => ipcRenderer.invoke('terminal:rename', request),
+    listLogs: () => ipcRenderer.invoke('terminal:list-logs'),
+    openLog: (id: string) => ipcRenderer.invoke('terminal:open-log', id),
+    openLogFile: (path: string) => ipcRenderer.invoke('terminal:open-log-file', path),
     onData: (callback: (event: TerminalDataEvent) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: TerminalDataEvent): void => callback(payload)
       ipcRenderer.on('terminal:data', listener)
@@ -30,9 +34,12 @@ const api: SmartShellApi = {
     }
   },
   profiles: {
-    list: () => ipcRenderer.invoke('profiles:list')
+    list: () => ipcRenderer.invoke('profiles:list'),
+    save: (profiles) => ipcRenderer.invoke('profiles:save', profiles)
   },
   workspace: {
+    getDefaultCwd: () => ipcRenderer.invoke('workspace:get-default-cwd'),
+    selectFolder: () => ipcRenderer.invoke('workspace:select-folder'),
     load: () => ipcRenderer.invoke('workspace:load'),
     save: (workspace: WorkspaceState) => ipcRenderer.invoke('workspace:save', workspace)
   }

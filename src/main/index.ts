@@ -11,6 +11,7 @@ let mainWindow: BrowserWindow | null = null
 const profileManager = new ProfileManager()
 const workspaceManager = new WorkspaceManager()
 const ptyManager = new PtyManager(profileManager, () => mainWindow)
+const appIcon = join(__dirname, '../../build/icon.ico')
 
 function createWindow(): void {
   Menu.setApplicationMenu(null)
@@ -21,6 +22,7 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     title: 'SmartShell',
+    icon: appIcon,
     autoHideMenuBar: true,
     backgroundColor: '#0f1117',
     webPreferences: {
@@ -42,7 +44,8 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await profileManager.load()
   registerIpcHandlers(ptyManager, profileManager, workspaceManager)
   createWindow()
 

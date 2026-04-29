@@ -13,6 +13,7 @@ export function LayoutRoot(): ReactElement {
   const profiles = useTerminalStore((state) => state.profiles)
   const createTerminal = useTerminalStore((state) => state.createTerminal)
   const layout = useTerminalStore((state) => state.layout)
+  const activeSessionId = useTerminalStore((state) => state.activeSessionId)
   const setActiveSession = useTerminalStore((state) => state.setActiveSession)
   const setLayout = useTerminalStore((state) => state.setLayout)
   const closeTerminal = useTerminalStore((state) => state.closeTerminal)
@@ -77,6 +78,13 @@ export function LayoutRoot(): ReactElement {
       knownPanelsRef.current.add(session.id)
     }
   }, [sessions, layout, ready])
+
+  useEffect(() => {
+    const api = apiRef.current as DockviewReadyEvent['api'] | null
+    if (!api || !activeSessionId) return
+
+    api.getPanel(activeSessionId)?.api.setActive()
+  }, [activeSessionId, sessions.length, ready])
 
   if (sessions.length === 0) {
     return (

@@ -1,5 +1,7 @@
-import { BrowserWindow } from 'electron'
-import type { CreateTerminalRequest, TerminalSession } from '@shared/types'
+import { mkdirSync, promises as fs } from 'node:fs'
+import path from 'node:path'
+import { app, BrowserWindow } from 'electron'
+import type { CreateTerminalRequest, TerminalLogEntry, TerminalSession } from '@shared/types'
 import { ProfileManager } from '../profiles/ProfileManager'
 import { PtySession } from './PtySession'
 
@@ -18,6 +20,7 @@ export class PtyManager {
     const args = request.args || profile?.args || ['-NoExit']
     const id = request.id || `terminal-${++this.sequence}`
     const title = request.title || profile?.defaultTitle || shell
+    const logPath = this.createLogPath(id)
 
     if (this.sessions.has(id)) {
       throw new Error(`Terminal session already exists: ${id}`)
@@ -31,7 +34,8 @@ export class PtyManager {
       cwd: request.cwd,
       profileId: profile?.id,
       cols: request.cols,
-      rows: request.rows
+      rows: request.rows,
+      logPath
     })
 
     session.on('data', (data: string) => {
@@ -39,7 +43,9 @@ export class PtyManager {
     })
 
     session.on('exit', (event: { exitCode?: number; signal?: number }) => {
-      this.getWindow()?.webContents.send('terminal:exit', { id, ...event })
+      if (this.sessions.get(id) === session) {
+        this.getWindow()?.webContents.send('terminal:exit', { id, ...event })
+      }
     })
 
     this.sessions.set(id, session)
@@ -62,11 +68,68 @@ export class PtyManager {
     return this.requireSession(id).rename(title.trim() || 'Terminal')
   }
 
+  getLogPath(id: string): string | undefined {
+    return this.requireSession(id).getMeta().logPath
+  }
+
+  async listLogs(): Promise<TerminalLogEntry[]> {
+    const logsDir = this.getLogsDir()
+    mkdirSync(logsDir, { recursive: true })
+    const entries = await fs.readdir(logsDir, { withFileTypes: true })
+    const logs = await Promise.all(
+      entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.log'))
+        .map(async (entry) => {
+          const filePath = path.join(logsDir, entry.name)
+          const stat = await fs.stat(filePath)
+          return {
+            name: entry.name,
+            path: filePath,
+            size: stat.size,
+            modifiedAt: stat.mtime.toISOString()
+          }
+        })
+    )
+
+    return logs.sort((first, second) => second.modifiedAt.localeCompare(first.modifiedAt))
+  }
+
+  isLogPath(filePath: string): boolean {
+    const logsDir = path.resolve(this.getLogsDir())
+    const resolvedPath = path.resolve(filePath)
+    return resolvedPath === logsDir || resolvedPath.startsWith(`${logsDir}${path.sep}`)
+  }
+
+  restart(id: string): TerminalSession {
+    const metadata = this.requireSession(id).getMeta()
+    this.kill(id)
+    return this.create({
+      id: metadata.id,
+      profileId: metadata.profileId,
+      shell: metadata.shell,
+      args: metadata.args,
+      cwd: metadata.cwd,
+      title: metadata.title
+    })
+  }
+
   kill(id: string): void {
     const session = this.sessions.get(id)
     if (!session) return
     session.kill()
     this.sessions.delete(id)
+  }
+
+  private getLogsDir(): string {
+    return path.join(app.getPath('userData'), 'logs')
+  }
+
+  private createLogPath(id: string): string {
+    const logsDir = this.getLogsDir()
+    mkdirSync(logsDir, { recursive: true })
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const safeId = id.replace(/[^a-zA-Z0-9._-]/g, '_')
+    return path.join(logsDir, `${timestamp}-${safeId}.log`)
   }
 
   private requireSession(id: string): PtySession {

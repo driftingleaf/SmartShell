@@ -1,6 +1,8 @@
 node_modules/
+.claude/
 out/
 dist/
+release/
 *.log
 .DS_Store
 .vscode/

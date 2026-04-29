@@ -1,0 +1,109 @@
+import { type ReactElement, useEffect, useState } from 'react'
+import type { TerminalProfile } from '@shared/types'
+import { useTerminalStore } from '@renderer/store/terminalStore'
+
+type ProfileDraft = TerminalProfile & {
+  argsText: string
+}
+
+type ProfileEditorProps = {
+  isOpen: boolean
+  onClose(): void
+}
+
+export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactElement | null {
+  const profiles = useTerminalStore((state) => state.profiles)
+  const saveProfiles = useTerminalStore((state) => state.saveProfiles)
+  const [drafts, setDrafts] = useState<ProfileDraft[]>([])
+
+  useEffect(() => {
+    if (isOpen) {
+      setDrafts(profiles.map((profile) => ({ ...profile, argsText: profile.args.join(' ') })))
+    }
+  }, [isOpen, profiles])
+
+  if (!isOpen) return null
+
+  const updateDraft = (id: string, patch: Partial<ProfileDraft>): void => {
+    setDrafts((items) => items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
+  }
+
+  const addProfile = (): void => {
+    setDrafts((items) => [
+      ...items,
+      {
+        id: crypto.randomUUID(),
+        name: 'Custom Command',
+        shell: 'powershell.exe',
+        args: [],
+        argsText: '-NoExit',
+        defaultTitle: 'Custom'
+      }
+    ])
+  }
+
+  const removeProfile = (id: string): void => {
+    setDrafts((items) => items.filter((item) => item.id !== id))
+  }
+
+  const submit = async (): Promise<void> => {
+    await saveProfiles(
+      drafts.map(({ argsText, ...profile }) => ({
+        ...profile,
+        name: profile.name.trim() || 'Untitled',
+        shell: profile.shell.trim() || 'powershell.exe',
+        defaultTitle: profile.defaultTitle.trim() || profile.name.trim() || 'Terminal',
+        args: argsText.split(' ').map((item) => item.trim()).filter(Boolean)
+      }))
+    )
+    onClose()
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="profile-editor" role="dialog" aria-modal="true" aria-label="Profile editor">
+        <header className="profile-editor-header">
+          <div>
+            <h2>Profiles</h2>
+            <p>Edit launch commands for PowerShell, Claude Code, Codex, and custom tools.</p>
+          </div>
+          <button type="button" onClick={onClose}>×</button>
+        </header>
+
+        <div className="profile-list">
+          {drafts.map((profile) => (
+            <article className="profile-row" key={profile.id}>
+              <label>
+                Name
+                <input value={profile.name} onChange={(event) => updateDraft(profile.id, { name: event.target.value })} />
+              </label>
+              <label>
+                Shell
+                <input value={profile.shell} onChange={(event) => updateDraft(profile.id, { shell: event.target.value })} />
+              </label>
+              <label>
+                Args
+                <input value={profile.argsText} onChange={(event) => updateDraft(profile.id, { argsText: event.target.value })} />
+              </label>
+              <label>
+                Title
+                <input value={profile.defaultTitle} onChange={(event) => updateDraft(profile.id, { defaultTitle: event.target.value })} />
+              </label>
+              <button className="profile-remove" type="button" onClick={() => removeProfile(profile.id)}>
+                Remove
+              </button>
+            </article>
+          ))}
+        </div>
+
+        <footer className="profile-editor-footer">
+          <button type="button" onClick={addProfile}>Add Profile</button>
+          <div>
+            <button type="button" onClick={onClose}>Cancel</button>
+            <button className="primary-button" type="button" onClick={() => void submit()}>Save Profiles</button>
+          </div>
+        </footer>
+      </section>
+    </div>
+  )
+}

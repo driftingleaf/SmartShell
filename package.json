@@ -10,7 +10,9 @@
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "build": "electron-vite build",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.json",
+    "dist": "npm run typecheck && electron-vite build && node scripts/package-windows.mjs",
+    "dist:dir": "npm run typecheck && electron-vite build && node scripts/package-windows.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
