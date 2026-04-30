@@ -56,6 +56,7 @@ function createWindow(): void {
     frame: false,
     titleBarStyle: 'hidden',
     autoHideMenuBar: true,
+    show: false,
     backgroundColor: '#0f1117',
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -63,6 +64,10 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false
     }
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show()
   })
 
   mainWindow.on('close', (event) => {
