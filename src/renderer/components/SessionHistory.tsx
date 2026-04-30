@@ -1,10 +1,10 @@
 import { type ReactElement, useEffect, useState } from 'react'
 import type { TerminalLogEntry, WorkspaceSnapshot } from '@shared/types'
+import { useOverlayStore } from '@renderer/store/overlayStore'
 import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
 type SessionHistoryProps = {
-  isOpen: boolean
   onClose(): void
 }
 
@@ -14,14 +14,19 @@ const formatSize = (size: number): string => {
   return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
-export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactElement | null {
+export function SessionHistory({ onClose }: SessionHistoryProps): ReactElement | null {
   const { t } = useI18n()
+  const isOpen = useOverlayStore((state) => state.isOpen('sessionHistory'))
+  const zIndex = useOverlayStore((state) => state.zIndex('sessionHistory'))
+  const bringToTop = useOverlayStore((state) => state.bringToTop)
   const restoreWorkspaceSnapshot = useTerminalStore((state) => state.restoreWorkspaceSnapshot)
   const [logs, setLogs] = useState<TerminalLogEntry[]>([])
   const [snapshots, setSnapshots] = useState<WorkspaceSnapshot[]>([])
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
+    setConfirming(false)
 
     void Promise.all([
       window.smartShell.workspace.listSnapshots(),
@@ -40,15 +45,25 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactE
 
   if (!isOpen) return null
 
+  const requestClose = (): void => {
+    setConfirming(true)
+  }
+
+  const handleBackdropClick = (e: React.MouseEvent): void => {
+    if (e.target === e.currentTarget) {
+      bringToTop('sessionHistory')
+    }
+  }
+
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div className="modal-backdrop" role="presentation" style={{ '--z-overlay': zIndex } as React.CSSProperties} onClick={handleBackdropClick}>
       <section className="history-modal" role="dialog" aria-modal="true" aria-label={t('sessionHistory')}>
         <header className="history-header">
           <div>
             <h2>{t('sessionHistory')}</h2>
             <p>{t('sessionHistoryDescription')}</p>
           </div>
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={requestClose}>
             {t('close')}
           </button>
         </header>
@@ -86,6 +101,15 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactE
             </div>
           </section>
         </div>
+        {confirming && (
+          <div className="close-confirm">
+            <span>{t('confirmClose')}</span>
+            <div className="close-confirm-actions">
+              <button type="button" onClick={() => setConfirming(false)}>{t('cancel')}</button>
+              <button type="button" onClick={onClose}>{t('close')}</button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   )

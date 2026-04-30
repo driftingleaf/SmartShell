@@ -1,9 +1,9 @@
 import { type ReactElement, useMemo, useState } from 'react'
+import { useOverlayStore } from '@renderer/store/overlayStore'
 import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
 type CommandPaletteProps = {
-  isOpen: boolean
   onClose(): void
   onEditProfiles(): void
   onOpenTasks(): void
@@ -17,13 +17,14 @@ type Command = {
 }
 
 export function CommandPalette({
-  isOpen,
   onClose,
   onEditProfiles,
   onOpenTasks,
   onSaveWorkspace
 }: CommandPaletteProps): ReactElement | null {
   const { t } = useI18n()
+  const isOpen = useOverlayStore((state) => state.isOpen('commandPalette'))
+  const zIndex = useOverlayStore((state) => state.zIndex('commandPalette'))
   const createTerminal = useTerminalStore((state) => state.createTerminal)
   const closeTerminal = useTerminalStore((state) => state.closeTerminal)
   const restartTerminal = useTerminalStore((state) => state.restartTerminal)
@@ -93,7 +94,7 @@ export function CommandPalette({
   }
 
   return (
-    <div className="modal-backdrop command-palette-backdrop" role="presentation">
+    <div className="modal-backdrop command-palette-backdrop" role="presentation" style={{ '--z-overlay': zIndex } as React.CSSProperties}>
       <section className="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
         <input
           autoFocus

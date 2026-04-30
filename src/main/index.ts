@@ -7,6 +7,7 @@ import { PtyManager } from './pty/PtyManager'
 import { WorkspaceManager } from './workspace/WorkspaceManager'
 
 let mainWindow: BrowserWindow | null = null
+let allowClose = false
 
 const profileManager = new ProfileManager()
 const workspaceManager = new WorkspaceManager()
@@ -34,6 +35,11 @@ function registerWindowIpc(): void {
     mainWindow?.close()
   })
 
+  ipcMain.handle('window:confirm-close', () => {
+    allowClose = true
+    mainWindow?.close()
+  })
+
   ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false)
 }
 
@@ -56,6 +62,13 @@ function createWindow(): void {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false
+    }
+  })
+
+  mainWindow.on('close', (event) => {
+    if (!allowClose) {
+      event.preventDefault()
+      mainWindow?.webContents.send('window:close-requested')
     }
   })
 

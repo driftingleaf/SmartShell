@@ -117,6 +117,8 @@ export type SmartShellApi = {
     minimize(): Promise<void>
     toggleMaximize(): Promise<boolean>
     close(): Promise<void>
+    confirmClose(): Promise<void>
     isMaximized(): Promise<boolean>
+    onCloseRequested(callback: () => void): () => void
   }
 }

@@ -7,6 +7,7 @@ import { LayoutRoot } from './components/LayoutRoot'
 import { ProfileEditor } from './components/ProfileEditor'
 import { SessionHistory } from './components/SessionHistory'
 import { TaskBoard } from './components/TaskBoard'
+import { useOverlayStore } from './store/overlayStore'
 import { useI18n, useSettingsStore } from './store/settingsStore'
 import { useTerminalStore } from './store/terminalStore'
 
@@ -22,13 +23,14 @@ export function App(): ReactElement {
   const layout = useTerminalStore((state) => state.layout)
   const { t } = useI18n()
   const theme = useSettingsStore((state) => state.theme)
+  const openOverlay = useOverlayStore((state) => state.open)
+  const closeOverlay = useOverlayStore((state) => state.close)
+  const closeTop = useOverlayStore((state) => state.closeTop)
+  const closeAll = useOverlayStore((state) => state.closeAll)
   const [isReady, setIsReady] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
-  const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false)
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
-  const [isTaskBoardOpen, setIsTaskBoardOpen] = useState(false)
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [exitConfirming, setExitConfirming] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -74,6 +76,14 @@ export function App(): ReactElement {
   }, [isReady, error, sessions, layout, saveWorkspace])
 
   useEffect(() => {
+    const removeCloseListener = window.smartShell.window.onCloseRequested(() => {
+      setExitConfirming(true)
+    })
+
+    return removeCloseListener
+  }, [])
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 't') {
         event.preventDefault()
@@ -81,13 +91,20 @@ export function App(): ReactElement {
       }
       if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'p') {
         event.preventDefault()
-        setIsCommandPaletteOpen(true)
+        openOverlay('commandPalette')
+      }
+      if (event.key === 'Escape' && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+        const { stack } = useOverlayStore.getState()
+        if (stack.length > 0) {
+          event.preventDefault()
+          closeTop()
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [createTerminal])
+  }, [closeTop, createTerminal, openOverlay])
 
   const handleSaveWorkspace = async (): Promise<void> => {
     await saveWorkspaceSnapshot()
@@ -95,23 +112,26 @@ export function App(): ReactElement {
     window.setTimeout(() => setMessage(''), 1800)
   }
 
+  const handleConfirmExit = (): void => {
+    void window.smartShell.window.confirmClose()
+  }
+
   return (
     <div className="app-shell">
       <AppTitleBar />
       <AppToolbar
-        onEditProfiles={() => setIsProfileEditorOpen(true)}
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenTasks={() => setIsTaskBoardOpen(true)}
+        onEditProfiles={() => openOverlay('profileEditor')}
+        onOpenHistory={() => openOverlay('sessionHistory')}
+        onOpenTasks={() => openOverlay('taskBoard')}
         onSaveWorkspace={() => void handleSaveWorkspace()}
       />
-      <ProfileEditor isOpen={isProfileEditorOpen} onClose={() => setIsProfileEditorOpen(false)} />
-      <SessionHistory isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} />
-      <TaskBoard isOpen={isTaskBoardOpen} onClose={() => setIsTaskBoardOpen(false)} />
+      <ProfileEditor onClose={() => closeOverlay('profileEditor')} />
+      <SessionHistory onClose={() => closeOverlay('sessionHistory')} />
+      <TaskBoard onClose={() => closeOverlay('taskBoard')} />
       <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        onEditProfiles={() => setIsProfileEditorOpen(true)}
-        onOpenTasks={() => setIsTaskBoardOpen(true)}
+        onClose={() => closeOverlay('commandPalette')}
+        onEditProfiles={() => openOverlay('profileEditor')}
+        onOpenTasks={() => openOverlay('taskBoard')}
         onSaveWorkspace={() => void handleSaveWorkspace()}
       />
       {message && <div className="toast">{message}</div>}
@@ -135,6 +155,18 @@ export function App(): ReactElement {
             <p>{t('loadingDetail')}</p>
           </div>
         </main>
+      )}
+      {exitConfirming && (
+        <div className="exit-confirm" onClick={(e) => { if (e.target === e.currentTarget) setExitConfirming(false) }}>
+          <div className="exit-confirm-card">
+            <h3>{t('confirmExit')}</h3>
+            <p>{t('confirmExitDetail')}</p>
+            <div className="exit-confirm-actions">
+              <button type="button" onClick={() => setExitConfirming(false)}>{t('cancel')}</button>
+              <button type="button" onClick={handleConfirmExit}>{t('exitApp')}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

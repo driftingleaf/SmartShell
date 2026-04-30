@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useState } from 'react'
 import type { TerminalProfile } from '@shared/types'
+import { useOverlayStore } from '@renderer/store/overlayStore'
 import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
@@ -8,23 +9,49 @@ type ProfileDraft = TerminalProfile & {
 }
 
 type ProfileEditorProps = {
-  isOpen: boolean
   onClose(): void
 }
 
-export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactElement | null {
+function isDirty(drafts: ProfileDraft[], profiles: TerminalProfile[]): boolean {
+  if (drafts.length !== profiles.length) return true
+  return drafts.some((draft) => {
+    const original = profiles.find((p) => p.id === draft.id)
+    if (!original) return true
+    return (
+      draft.name !== original.name ||
+      draft.shell !== original.shell ||
+      draft.argsText !== original.args.join(' ') ||
+      draft.defaultTitle !== original.defaultTitle
+    )
+  })
+}
+
+export function ProfileEditor({ onClose }: ProfileEditorProps): ReactElement | null {
   const { t } = useI18n()
   const profiles = useTerminalStore((state) => state.profiles)
   const saveProfiles = useTerminalStore((state) => state.saveProfiles)
+  const isOpen = useOverlayStore((state) => state.isOpen('profileEditor'))
+  const zIndex = useOverlayStore((state) => state.zIndex('profileEditor'))
+  const bringToTop = useOverlayStore((state) => state.bringToTop)
   const [drafts, setDrafts] = useState<ProfileDraft[]>([])
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
       setDrafts(profiles.map((profile) => ({ ...profile, argsText: profile.args.join(' ') })))
+      setConfirming(false)
     }
   }, [isOpen, profiles])
 
   if (!isOpen) return null
+
+  const requestClose = (): void => {
+    if (isDirty(drafts, profiles)) {
+      setConfirming(true)
+    } else {
+      onClose()
+    }
+  }
 
   const updateDraft = (id: string, patch: Partial<ProfileDraft>): void => {
     setDrafts((items) => items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
@@ -61,15 +88,21 @@ export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactEle
     onClose()
   }
 
+  const handleBackdropClick = (e: React.MouseEvent): void => {
+    if (e.target === e.currentTarget) {
+      bringToTop('profileEditor')
+    }
+  }
+
   return (
-    <div className="modal-backdrop" role="presentation">
+    <div className="modal-backdrop" role="presentation" style={{ '--z-overlay': zIndex } as React.CSSProperties} onClick={handleBackdropClick}>
       <section className="profile-editor" role="dialog" aria-modal="true" aria-label="Profile editor">
         <header className="profile-editor-header">
           <div>
             <h2>{t('profiles')}</h2>
             <p>{t('profilesDescription')}</p>
           </div>
-          <button type="button" onClick={onClose}>×</button>
+          <button type="button" onClick={requestClose}>×</button>
         </header>
 
         <div className="profile-list">
@@ -102,13 +135,23 @@ export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactEle
           ))}
         </div>
 
-        <footer className="profile-editor-footer">
-          <button type="button" onClick={addProfile}>{t('addProfile')}</button>
-          <div>
-            <button type="button" onClick={onClose}>{t('cancel')}</button>
-            <button className="primary-button" type="button" onClick={() => void submit()}>{t('saveProfiles')}</button>
+        {confirming ? (
+          <div className="close-confirm">
+            <span>{t('discardChanges')}</span>
+            <div className="close-confirm-actions">
+              <button type="button" onClick={() => setConfirming(false)}>{t('cancel')}</button>
+              <button type="button" onClick={onClose}>{t('discard')}</button>
+            </div>
           </div>
-        </footer>
+        ) : (
+          <footer className="profile-editor-footer">
+            <button type="button" onClick={addProfile}>{t('addProfile')}</button>
+            <div>
+              <button type="button" onClick={requestClose}>{t('cancel')}</button>
+              <button className="primary-button" type="button" onClick={() => void submit()}>{t('saveProfiles')}</button>
+            </div>
+          </footer>
+        )}
       </section>
     </div>
   )

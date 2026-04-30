@@ -86,7 +86,13 @@ const translations = {
     themeAbyss: 'Abyss',
     themeMidnight: 'Midnight',
     themeLight: 'Light',
-    builtIn: 'Built-in'
+    builtIn: 'Built-in',
+    confirmClose: 'Close this panel?',
+    discardChanges: 'You have unsaved changes.',
+    discard: 'Discard',
+    confirmExit: 'Are you sure you want to exit?',
+    confirmExitDetail: 'All running terminal sessions will be closed.',
+    exitApp: 'Exit'
   },
   'zh-CN': {
     shortcutHint: 'Ctrl+Shift+T 新建 · Ctrl+Shift+P 命令',
@@ -167,7 +173,13 @@ const translations = {
     themeAbyss: '深海',
     themeMidnight: '午夜',
     themeLight: '浅色',
-    builtIn: '内置'
+    builtIn: '内置',
+    confirmClose: '确定关闭此面板？',
+    discardChanges: '您有未保存的更改。',
+    discard: '放弃',
+    confirmExit: '确定要退出吗？',
+    confirmExitDetail: '所有正在运行的终端会话将被关闭。',
+    exitApp: '退出'
   },
   'zh-TW': {
     shortcutHint: 'Ctrl+Shift+T 新增 · Ctrl+Shift+P 命令',
@@ -248,7 +260,13 @@ const translations = {
     themeAbyss: '深海',
     themeMidnight: '午夜',
     themeLight: '淺色',
-    builtIn: '內建'
+    builtIn: '內建',
+    confirmClose: '確定關閉此面板？',
+    discardChanges: '您有未儲存的變更。',
+    discard: '放棄',
+    confirmExit: '確定要退出嗎？',
+    confirmExitDetail: '所有正在執行的終端會話將被關閉。',
+    exitApp: '退出'
   }
 } satisfies Record<Language, Record<string, string>>
 

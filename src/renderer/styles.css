@@ -21,6 +21,10 @@
   --scroll-thumb-hover: #46516d;
   --terminal-bg: #0f1117;
   --danger: #7a2533;
+  --z-toolbar: 100;
+  --z-titlebar: 110;
+  --z-dropdown: 120;
+  --z-toast: 500;
   color: var(--text);
   background: var(--app-bg);
   font-family: "IBM Plex Sans", Inter, Segoe UI, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -171,7 +175,7 @@ button:active {
 
 .app-titlebar {
   position: relative;
-  z-index: 130;
+  z-index: var(--z-titlebar);
   display: flex;
   height: 36px;
   flex: 0 0 36px;
@@ -263,7 +267,7 @@ button:active {
 
 .app-toolbar {
   position: relative;
-  z-index: 120;
+  z-index: var(--z-toolbar);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -330,7 +334,7 @@ button:active {
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
-  z-index: 140;
+  z-index: var(--z-dropdown);
   display: grid;
   min-width: 210px;
   gap: 6px;
@@ -416,7 +420,7 @@ button:active {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 140;
+  z-index: var(--z-dropdown);
   display: grid;
   min-width: 190px;
   gap: 6px;
@@ -735,7 +739,7 @@ button:active {
   position: absolute;
   top: 70px;
   right: 18px;
-  z-index: 50;
+  z-index: var(--z-toast);
   border: 1px solid color-mix(in srgb, var(--accent) 44%, var(--border));
   border-radius: 8px;
   padding: 8px 12px;
@@ -1036,7 +1040,7 @@ button:active {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-overlay, 1000);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -1045,6 +1049,7 @@ button:active {
 }
 
 .profile-editor {
+  position: relative;
   display: flex;
   width: min(1040px, 100%);
   max-height: min(760px, 90vh);
@@ -1157,6 +1162,114 @@ button:active {
   background: color-mix(in srgb, var(--accent) 24%, var(--control-bg));
 }
 
+.close-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding: 12px 20px;
+  background: color-mix(in srgb, var(--panel-bg-strong) 97%, var(--accent));
+}
+
+.close-confirm span {
+  flex: 1;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.close-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.close-confirm-actions button {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 6px 14px;
+  color: var(--text);
+  background: var(--control-bg);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.close-confirm-actions button:first-child:hover {
+  background: var(--panel-bg-hover);
+}
+
+.close-confirm-actions button:last-child {
+  color: #fca5a5;
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  background: color-mix(in srgb, var(--danger) 30%, var(--control-bg));
+}
+
+.close-confirm-actions button:last-child:hover {
+  background: color-mix(in srgb, var(--danger) 50%, var(--control-bg));
+}
+
+.exit-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 65%);
+  backdrop-filter: blur(12px);
+}
+
+.exit-confirm-card {
+  display: flex;
+  width: min(400px, 100%);
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 28px;
+  background: var(--panel-bg);
+  box-shadow: 0 30px 100px rgb(0 0 0 / 52%);
+}
+
+.exit-confirm-card h3 {
+  margin: 0;
+}
+
+.exit-confirm-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.exit-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.exit-confirm-actions button {
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 9px 18px;
+  color: var(--text);
+  background: var(--control-bg);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.exit-confirm-actions button:first-child:hover {
+  background: var(--panel-bg-hover);
+}
+
+.exit-confirm-actions button:last-child {
+  color: #fca5a5;
+  border-color: color-mix(in srgb, var(--danger) 50%, transparent);
+  background: color-mix(in srgb, var(--danger) 30%, var(--control-bg));
+}
+
+.exit-confirm-actions button:last-child:hover {
+  background: color-mix(in srgb, var(--danger) 50%, var(--control-bg));
+}
+
 .command-palette-backdrop {
   align-items: start;
   padding-top: 9vh;
@@ -1165,6 +1278,7 @@ button:active {
 .command-palette,
 .history-modal,
 .task-board-modal {
+  position: relative;
   width: min(720px, 100%);
   overflow: hidden;
   border: 1px solid var(--border-soft);

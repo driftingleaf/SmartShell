@@ -55,7 +55,13 @@ const api: SmartShellApi = {
     minimize: () => ipcRenderer.invoke('window:minimize'),
     toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
     close: () => ipcRenderer.invoke('window:close'),
-    isMaximized: () => ipcRenderer.invoke('window:is-maximized')
+    confirmClose: () => ipcRenderer.invoke('window:confirm-close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
+    onCloseRequested: (callback: () => void) => {
+      const listener = (): void => callback()
+      ipcRenderer.on('window:close-requested', listener)
+      return () => ipcRenderer.off('window:close-requested', listener)
+    }
   }
 }
 
