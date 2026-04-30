@@ -18,6 +18,7 @@ export type TerminalProfile = {
   shell: string
   args: string[]
   defaultTitle: string
+  builtIn?: boolean
 }
 
 export type CreateTerminalRequest = {

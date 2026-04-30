@@ -100,7 +100,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     }
 
     if (sessions.length === 0) {
-      await get().createTerminal('powershell')
+      void get().createTerminal('powershell').catch((reason: unknown) => console.error(reason))
     }
   },
 

@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useRef, useState } from 'react'
 import { DockviewReact, type DockviewReadyEvent } from 'dockview'
+import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 import { TerminalPanel } from './TerminalPanel'
 import 'dockview/dist/styles/dockview.css'
@@ -9,6 +10,7 @@ const components = {
 }
 
 export function LayoutRoot(): ReactElement {
+  const { t } = useI18n()
   const sessions = useTerminalStore((state) => state.sessions)
   const profiles = useTerminalStore((state) => state.profiles)
   const createTerminal = useTerminalStore((state) => state.createTerminal)
@@ -90,9 +92,9 @@ export function LayoutRoot(): ReactElement {
     return (
       <main className="empty-workspace">
         <div className="empty-card">
-          <span className="empty-badge">No terminals open</span>
-          <h1>Start a new session</h1>
-          <p>Open a terminal below, or use the launcher in the top bar.</p>
+          <span className="empty-badge">{t('noTerminals')}</span>
+          <h1>{t('startSession')}</h1>
+          <p>{t('openTerminalBelow')}</p>
           <div className="empty-actions">
             {profiles.map((profile) => (
               <button key={profile.id} type="button" onClick={() => void createTerminal(profile.id)}>

@@ -1,7 +1,9 @@
 import { type FormEvent, type ReactElement, useState } from 'react'
+import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
 export function AgentPanel(): ReactElement {
+  const { t } = useI18n()
   const sessions = useTerminalStore((state) => state.sessions)
   const profiles = useTerminalStore((state) => state.profiles)
   const activeSessionId = useTerminalStore((state) => state.activeSessionId)
@@ -26,7 +28,7 @@ export function AgentPanel(): ReactElement {
   }
 
   const getProfileName = (profileId?: string): string => {
-    return profiles.find((profile) => profile.id === profileId)?.name ?? 'Custom terminal'
+    return profiles.find((profile) => profile.id === profileId)?.name ?? t('customTerminal')
   }
 
   const getCwdLabel = (cwd: string): string => {
@@ -37,23 +39,23 @@ export function AgentPanel(): ReactElement {
     <aside className="agent-panel" aria-label="Agent sessions">
       <div className="agent-panel-header">
         <div>
-          <strong>Agents</strong>
-          <span>{runningSessions.length} running sessions</span>
+          <strong>{t('agents')}</strong>
+          <span>{t('runningSessions', { count: runningSessions.length })}</span>
         </div>
       </div>
       <form className="agent-broadcast" onSubmit={sendBroadcast}>
         <input
           value={broadcastText}
-          placeholder="Broadcast command..."
+          placeholder={t('broadcastCommand')}
           onChange={(event) => setBroadcastText(event.target.value)}
         />
         <button type="submit" disabled={runningSessions.length === 0}>
-          Send
+          {t('send')}
         </button>
       </form>
       <div className="agent-list">
         {sessions.length === 0 ? (
-          <div className="agent-empty">No sessions yet.</div>
+          <div className="agent-empty">{t('noSessions')}</div>
         ) : (
           sessions.map((session) => {
             const signal = agentSignals[session.id]
@@ -79,16 +81,16 @@ export function AgentPanel(): ReactElement {
                 </button>
                 <div className="agent-card-actions">
                   <button type="button" onClick={() => void restartTerminal(session.id)}>
-                    Restart
+                    {t('restart')}
                   </button>
                   <button type="button" onClick={() => void duplicateTerminal(session.id)}>
-                    Duplicate
+                    {t('duplicate')}
                   </button>
                   <button type="button" onClick={() => void window.smartShell.terminal.openLog(session.id)}>
-                    Log
+                    {t('log')}
                   </button>
                   <button type="button" onClick={() => void closeTerminal(session.id)}>
-                    Close
+                    {t('close')}
                   </button>
                 </div>
               </article>

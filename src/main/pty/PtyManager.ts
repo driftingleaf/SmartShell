@@ -18,13 +18,15 @@ export class PtyManager {
     const profile = request.profileId ? this.profileManager.get(request.profileId) : undefined
     const shell = request.shell || profile?.shell || 'powershell.exe'
     const args = request.args || profile?.args || ['-NoExit']
-    const id = request.id || `terminal-${++this.sequence}`
+    const id = request.id || this.createSessionId()
     const title = request.title || profile?.defaultTitle || shell
-    const logPath = this.createLogPath(id)
 
     if (this.sessions.has(id)) {
       throw new Error(`Terminal session already exists: ${id}`)
     }
+
+    this.syncSequence(id)
+    const logPath = this.createLogPath(id)
 
     const session = new PtySession({
       id,
@@ -118,6 +120,21 @@ export class PtyManager {
     if (!session) return
     session.kill()
     this.sessions.delete(id)
+  }
+
+  private createSessionId(): string {
+    let id = `terminal-${++this.sequence}`
+    while (this.sessions.has(id)) {
+      id = `terminal-${++this.sequence}`
+    }
+    return id
+  }
+
+  private syncSequence(id: string): void {
+    const match = /^terminal-(\d+)$/.exec(id)
+    if (!match) return
+
+    this.sequence = Math.max(this.sequence, Number(match[1]))
   }
 
   private getLogsDir(): string {

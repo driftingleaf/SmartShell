@@ -2,6 +2,7 @@ import { type ReactElement, useEffect, useRef, useState } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import type { IDockviewPanelProps } from 'dockview'
+import { getTerminalTheme, useSettingsStore } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 import { TerminalHeader } from './TerminalHeader'
 import '@xterm/xterm/css/xterm.css'
@@ -17,6 +18,7 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
   const restartTerminal = useTerminalStore((state) => state.restartTerminal)
   const duplicateTerminal = useTerminalStore((state) => state.duplicateTerminal)
   const closeTerminal = useTerminalStore((state) => state.closeTerminal)
+  const theme = useSettingsStore((state) => state.theme)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const sessionId = props.params.sessionId
 
@@ -27,12 +29,7 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
       cursorBlink: true,
       fontFamily: 'Cascadia Mono, Consolas, monospace',
       fontSize: 13,
-      theme: {
-        background: '#0f1117',
-        foreground: '#d6deeb',
-        cursor: '#80cbc4',
-        selectionBackground: '#2d3f57'
-      },
+      theme: getTerminalTheme(useSettingsStore.getState().theme),
       allowProposedApi: false
     })
     const fitAddon = new FitAddon()
@@ -77,6 +74,12 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
       fitAddonRef.current = null
     }
   }, [sessionId])
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.options.theme = getTerminalTheme(theme)
+    }
+  }, [theme])
 
   const copySelection = async (): Promise<void> => {
     const selection = terminalRef.current?.getSelection()

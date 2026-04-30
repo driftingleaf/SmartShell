@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactElement, useEffect, useMemo, useState } from 'react'
+import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
 type TaskStatus = 'todo' | 'doing' | 'done'
@@ -16,11 +17,11 @@ type TaskBoardProps = {
 }
 
 const storageKey = 'smartshell.taskBoard'
-const columns: { status: TaskStatus; label: string }[] = [
-  { status: 'todo', label: 'Todo' },
-  { status: 'doing', label: 'Doing' },
-  { status: 'done', label: 'Done' }
-]
+const columns = [
+  { status: 'todo', label: 'todo' },
+  { status: 'doing', label: 'doing' },
+  { status: 'done', label: 'done' }
+] satisfies { status: TaskStatus; label: 'todo' | 'doing' | 'done' }[]
 
 const loadTasks = (): BoardTask[] => {
   const raw = window.localStorage.getItem(storageKey)
@@ -34,6 +35,7 @@ const loadTasks = (): BoardTask[] => {
 }
 
 export function TaskBoard({ isOpen, onClose }: TaskBoardProps): ReactElement | null {
+  const { t } = useI18n()
   const sessions = useTerminalStore((state) => state.sessions)
   const setActiveSession = useTerminalStore((state) => state.setActiveSession)
   const [tasks, setTasks] = useState<BoardTask[]>(loadTasks)
@@ -80,29 +82,29 @@ export function TaskBoard({ isOpen, onClose }: TaskBoardProps): ReactElement | n
       <section className="task-board-modal" role="dialog" aria-modal="true" aria-label="Task board">
         <header className="task-board-header">
           <div>
-            <h2>Task Board</h2>
-            <p>Track work across parallel terminal agents.</p>
+            <h2>{t('taskBoard')}</h2>
+            <p>{t('taskBoardDescription')}</p>
           </div>
           <button type="button" onClick={onClose}>
-            Close
+            {t('close')}
           </button>
         </header>
         <form className="task-board-form" onSubmit={addTask}>
-          <input value={title} placeholder="Add a task..." onChange={(event) => setTitle(event.target.value)} />
+          <input value={title} placeholder={t('addTask')} onChange={(event) => setTitle(event.target.value)} />
           <select value={sessionId} onChange={(event) => setSessionId(event.target.value)}>
-            <option value="">No session</option>
+            <option value="">{t('noSession')}</option>
             {sessions.map((session) => (
               <option key={session.id} value={session.id}>
                 {session.title}
               </option>
             ))}
           </select>
-          <button type="submit">Add</button>
+          <button type="submit">{t('add')}</button>
         </form>
         <div className="task-board-columns">
           {columns.map((column) => (
             <section key={column.status} className="task-column">
-              <h3>{column.label}</h3>
+              <h3>{t(column.label)}</h3>
               {tasks
                 .filter((task) => task.status === column.status)
                 .map((task) => (
@@ -110,7 +112,7 @@ export function TaskBoard({ isOpen, onClose }: TaskBoardProps): ReactElement | n
                     <strong>{task.title}</strong>
                     {task.sessionId && (
                       <button type="button" onClick={() => setActiveSession(task.sessionId!)}>
-                        {sessionTitles.get(task.sessionId) ?? 'Missing session'}
+                        {sessionTitles.get(task.sessionId) ?? t('missingSession')}
                       </button>
                     )}
                     <div className="task-card-actions">
@@ -121,11 +123,11 @@ export function TaskBoard({ isOpen, onClose }: TaskBoardProps): ReactElement | n
                           disabled={task.status === target.status}
                           onClick={() => updateTask(task.id, target.status)}
                         >
-                          {target.label}
+                          {t(target.label)}
                         </button>
                       ))}
                       <button type="button" onClick={() => removeTask(task.id)}>
-                        Remove
+                        {t('remove')}
                       </button>
                     </div>
                   </article>

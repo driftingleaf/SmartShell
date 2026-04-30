@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useState } from 'react'
 import type { TerminalLogEntry } from '@shared/types'
+import { useI18n } from '@renderer/store/settingsStore'
 
 type SessionHistoryProps = {
   isOpen: boolean
@@ -13,6 +14,7 @@ const formatSize = (size: number): string => {
 }
 
 export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactElement | null {
+  const { t } = useI18n()
   const [logs, setLogs] = useState<TerminalLogEntry[]>([])
 
   useEffect(() => {
@@ -28,16 +30,16 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactE
       <section className="history-modal" role="dialog" aria-modal="true" aria-label="Session history">
         <header className="history-header">
           <div>
-            <h2>Session History</h2>
-            <p>Open persisted terminal logs from previous and current sessions.</p>
+            <h2>{t('sessionHistory')}</h2>
+            <p>{t('sessionHistoryDescription')}</p>
           </div>
           <button type="button" onClick={onClose}>
-            Close
+            {t('close')}
           </button>
         </header>
         <div className="history-list">
           {logs.length === 0 ? (
-            <div className="history-empty">No logs yet.</div>
+            <div className="history-empty">{t('noLogs')}</div>
           ) : (
             logs.map((log) => (
               <button key={log.path} type="button" onClick={() => void window.smartShell.terminal.openLogFile(log.path)}>

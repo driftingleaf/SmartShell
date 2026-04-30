@@ -4,20 +4,24 @@ import path from 'node:path'
 import { app } from 'electron'
 import type { TerminalProfile } from '@shared/types'
 
+const builtInProfileIds = new Set(['powershell', 'cmd'])
+
 const defaultProfiles: TerminalProfile[] = [
   {
     id: 'powershell',
     name: 'PowerShell',
     shell: 'powershell.exe',
     args: ['-NoExit'],
-    defaultTitle: 'PowerShell'
+    defaultTitle: 'PowerShell',
+    builtIn: true
   },
   {
     id: 'cmd',
     name: 'Command Prompt',
     shell: 'cmd.exe',
     args: [],
-    defaultTitle: 'cmd'
+    defaultTitle: 'cmd',
+    builtIn: true
   },
   {
     id: 'claude',
@@ -35,6 +39,20 @@ const defaultProfiles: TerminalProfile[] = [
   }
 ]
 
+const normalizeProfiles = (profiles: TerminalProfile[]): TerminalProfile[] => {
+  const defaultBuiltIns = defaultProfiles.filter((profile) => profile.builtIn)
+  const editableProfiles = profiles
+    .filter((profile) => !builtInProfileIds.has(profile.id))
+    .map((profile) => ({
+      ...profile,
+      id: profile.id || randomUUID(),
+      args: profile.args ?? [],
+      builtIn: false
+    }))
+
+  return [...defaultBuiltIns, ...editableProfiles]
+}
+
 export class ProfileManager {
   private profiles: TerminalProfile[] = defaultProfiles
 
@@ -46,7 +64,7 @@ export class ProfileManager {
     try {
       const raw = await fs.readFile(this.filePath, 'utf8')
       const profiles = JSON.parse(raw) as TerminalProfile[]
-      this.profiles = profiles.length > 0 ? profiles : defaultProfiles
+      this.profiles = profiles.length > 0 ? normalizeProfiles(profiles) : defaultProfiles
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
         throw error
@@ -60,11 +78,7 @@ export class ProfileManager {
   }
 
   async save(profiles: TerminalProfile[]): Promise<TerminalProfile[]> {
-    this.profiles = profiles.map((profile) => ({
-      ...profile,
-      id: profile.id || randomUUID(),
-      args: profile.args ?? []
-    }))
+    this.profiles = normalizeProfiles(profiles)
     await fs.mkdir(path.dirname(this.filePath), { recursive: true })
     await fs.writeFile(this.filePath, JSON.stringify(this.profiles, null, 2), 'utf8')
     return this.profiles

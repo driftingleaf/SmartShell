@@ -1,4 +1,5 @@
 import { type ReactElement, useMemo, useState } from 'react'
+import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
 type CommandPaletteProps = {
@@ -22,6 +23,7 @@ export function CommandPalette({
   onOpenTasks,
   onSaveWorkspace
 }: CommandPaletteProps): ReactElement | null {
+  const { t } = useI18n()
   const createTerminal = useTerminalStore((state) => state.createTerminal)
   const closeTerminal = useTerminalStore((state) => state.closeTerminal)
   const restartTerminal = useTerminalStore((state) => state.restartTerminal)
@@ -33,50 +35,50 @@ export function CommandPalette({
 
   const commands = useMemo<Command[]>(() => {
     const terminalCommands = profiles.map((profile) => ({
-      label: `New ${profile.name}`,
-      description: `Start ${profile.defaultTitle}`,
+      label: t('newProfile', { name: profile.name }),
+      description: t('startProfile', { title: profile.defaultTitle }),
       run: () => void createTerminal(profile.id)
     }))
 
     return [
       ...terminalCommands,
       {
-        label: 'Open Folder',
-        description: 'Choose the workspace folder used by new terminals',
+        label: t('openFolder'),
+        description: t('openFolderDescription'),
         run: () => void selectWorkspaceFolder()
       },
       {
-        label: 'Edit Profiles',
-        description: 'Configure terminal launch commands',
+        label: t('editProfiles'),
+        description: t('editProfilesDescription'),
         run: onEditProfiles
       },
       {
-        label: 'Open Task Board',
-        description: 'Track work across parallel agent sessions',
+        label: t('openTaskBoard'),
+        description: t('openTaskBoardDescription'),
         run: onOpenTasks
       },
       {
-        label: 'Save Workspace',
-        description: 'Save layout and sessions now',
+        label: t('saveWorkspace'),
+        description: t('saveWorkspaceDescription'),
         run: onSaveWorkspace
       },
       {
-        label: 'Restart Active Terminal',
-        description: 'Restart the current terminal session',
+        label: t('restartActiveTerminal'),
+        description: t('restartActiveTerminalDescription'),
         run: () => activeSessionId && void restartTerminal(activeSessionId)
       },
       {
-        label: 'Duplicate Active Terminal',
-        description: 'Create a copy of the current terminal profile and cwd',
+        label: t('duplicateActiveTerminal'),
+        description: t('duplicateActiveTerminalDescription'),
         run: () => activeSessionId && void duplicateTerminal(activeSessionId)
       },
       {
-        label: 'Close Active Terminal',
-        description: 'Close the current terminal session',
+        label: t('closeActiveTerminal'),
+        description: t('closeActiveTerminalDescription'),
         run: () => activeSessionId && void closeTerminal(activeSessionId)
       }
     ]
-  }, [activeSessionId, closeTerminal, createTerminal, duplicateTerminal, onEditProfiles, onOpenTasks, onSaveWorkspace, profiles, restartTerminal, selectWorkspaceFolder])
+  }, [activeSessionId, closeTerminal, createTerminal, duplicateTerminal, onEditProfiles, onOpenTasks, onSaveWorkspace, profiles, restartTerminal, selectWorkspaceFolder, t])
 
   if (!isOpen) return null
 
@@ -96,7 +98,7 @@ export function CommandPalette({
         <input
           autoFocus
           value={query}
-          placeholder="Type a command..."
+          placeholder={t('typeCommand')}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {

@@ -6,6 +6,7 @@ import { LayoutRoot } from './components/LayoutRoot'
 import { ProfileEditor } from './components/ProfileEditor'
 import { SessionHistory } from './components/SessionHistory'
 import { TaskBoard } from './components/TaskBoard'
+import { useI18n, useSettingsStore } from './store/settingsStore'
 import { useTerminalStore } from './store/terminalStore'
 
 export function App(): ReactElement {
@@ -16,6 +17,8 @@ export function App(): ReactElement {
   const captureTerminalOutput = useTerminalStore((state) => state.captureTerminalOutput)
   const sessions = useTerminalStore((state) => state.sessions)
   const layout = useTerminalStore((state) => state.layout)
+  const { t } = useI18n()
+  const theme = useSettingsStore((state) => state.theme)
   const [isReady, setIsReady] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -23,6 +26,10 @@ export function App(): ReactElement {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [isTaskBoardOpen, setIsTaskBoardOpen] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
   useEffect(() => {
     void loadInitialState()
@@ -75,7 +82,7 @@ export function App(): ReactElement {
 
   const handleSaveWorkspace = async (): Promise<void> => {
     await saveWorkspace()
-    setMessage('Workspace saved')
+    setMessage(t('workspaceSaved'))
     window.setTimeout(() => setMessage(''), 1800)
   }
 
@@ -101,7 +108,7 @@ export function App(): ReactElement {
       {error ? (
         <main className="empty-workspace error-workspace">
           <div>
-            <h1>SmartShell failed to start</h1>
+            <h1>{t('failedToStart')}</h1>
             <pre>{error}</pre>
           </div>
         </main>
@@ -111,7 +118,13 @@ export function App(): ReactElement {
           <AgentPanel />
         </main>
       ) : (
-        <main className="empty-workspace">Loading SmartShell...</main>
+        <main className="empty-workspace app-loading">
+          <div className="loading-card">
+            <span className="brand-mark">S</span>
+            <strong>{t('loading')}</strong>
+            <p>{t('loadingDetail')}</p>
+          </div>
+        </main>
       )}
     </div>
   )

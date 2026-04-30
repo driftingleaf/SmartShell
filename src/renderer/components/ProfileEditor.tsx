@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useState } from 'react'
 import type { TerminalProfile } from '@shared/types'
+import { useI18n } from '@renderer/store/settingsStore'
 import { useTerminalStore } from '@renderer/store/terminalStore'
 
 type ProfileDraft = TerminalProfile & {
@@ -12,6 +13,7 @@ type ProfileEditorProps = {
 }
 
 export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactElement | null {
+  const { t } = useI18n()
   const profiles = useTerminalStore((state) => state.profiles)
   const saveProfiles = useTerminalStore((state) => state.saveProfiles)
   const [drafts, setDrafts] = useState<ProfileDraft[]>([])
@@ -64,8 +66,8 @@ export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactEle
       <section className="profile-editor" role="dialog" aria-modal="true" aria-label="Profile editor">
         <header className="profile-editor-header">
           <div>
-            <h2>Profiles</h2>
-            <p>Edit launch commands for PowerShell, Claude Code, Codex, and custom tools.</p>
+            <h2>{t('profiles')}</h2>
+            <p>{t('profilesDescription')}</p>
           </div>
           <button type="button" onClick={onClose}>×</button>
         </header>
@@ -74,33 +76,37 @@ export function ProfileEditor({ isOpen, onClose }: ProfileEditorProps): ReactEle
           {drafts.map((profile) => (
             <article className="profile-row" key={profile.id}>
               <label>
-                Name
-                <input value={profile.name} onChange={(event) => updateDraft(profile.id, { name: event.target.value })} />
+                {t('name')}
+                <input disabled={profile.builtIn} value={profile.name} onChange={(event) => updateDraft(profile.id, { name: event.target.value })} />
               </label>
               <label>
-                Shell
-                <input value={profile.shell} onChange={(event) => updateDraft(profile.id, { shell: event.target.value })} />
+                {t('shell')}
+                <input disabled={profile.builtIn} value={profile.shell} onChange={(event) => updateDraft(profile.id, { shell: event.target.value })} />
               </label>
               <label>
-                Args
-                <input value={profile.argsText} onChange={(event) => updateDraft(profile.id, { argsText: event.target.value })} />
+                {t('args')}
+                <input disabled={profile.builtIn} value={profile.argsText} onChange={(event) => updateDraft(profile.id, { argsText: event.target.value })} />
               </label>
               <label>
-                Title
-                <input value={profile.defaultTitle} onChange={(event) => updateDraft(profile.id, { defaultTitle: event.target.value })} />
+                {t('title')}
+                <input disabled={profile.builtIn} value={profile.defaultTitle} onChange={(event) => updateDraft(profile.id, { defaultTitle: event.target.value })} />
               </label>
-              <button className="profile-remove" type="button" onClick={() => removeProfile(profile.id)}>
-                Remove
-              </button>
+              {profile.builtIn ? (
+                <span className="profile-built-in">{t('builtIn')}</span>
+              ) : (
+                <button className="profile-remove" type="button" onClick={() => removeProfile(profile.id)}>
+                  {t('remove')}
+                </button>
+              )}
             </article>
           ))}
         </div>
 
         <footer className="profile-editor-footer">
-          <button type="button" onClick={addProfile}>Add Profile</button>
+          <button type="button" onClick={addProfile}>{t('addProfile')}</button>
           <div>
-            <button type="button" onClick={onClose}>Cancel</button>
-            <button className="primary-button" type="button" onClick={() => void submit()}>Save Profiles</button>
+            <button type="button" onClick={onClose}>{t('cancel')}</button>
+            <button className="primary-button" type="button" onClick={() => void submit()}>{t('saveProfiles')}</button>
           </div>
         </footer>
       </section>
