@@ -1,6 +1,7 @@
 import { type ReactElement, useEffect, useState } from 'react'
-import type { TerminalLogEntry } from '@shared/types'
+import type { TerminalLogEntry, WorkspaceSnapshot } from '@shared/types'
 import { useI18n } from '@renderer/store/settingsStore'
+import { useTerminalStore } from '@renderer/store/terminalStore'
 
 type SessionHistoryProps = {
   isOpen: boolean
@@ -15,19 +16,33 @@ const formatSize = (size: number): string => {
 
 export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactElement | null {
   const { t } = useI18n()
+  const restoreWorkspaceSnapshot = useTerminalStore((state) => state.restoreWorkspaceSnapshot)
   const [logs, setLogs] = useState<TerminalLogEntry[]>([])
+  const [snapshots, setSnapshots] = useState<WorkspaceSnapshot[]>([])
 
   useEffect(() => {
     if (!isOpen) return
 
-    void window.smartShell.terminal.listLogs().then(setLogs)
+    void Promise.all([
+      window.smartShell.workspace.listSnapshots(),
+      window.smartShell.terminal.listLogs()
+    ]).then(([workspaceSnapshots, terminalLogs]) => {
+      setSnapshots(workspaceSnapshots)
+      setLogs(terminalLogs)
+    })
   }, [isOpen])
+
+  const restoreSnapshot = async (snapshot: WorkspaceSnapshot): Promise<void> => {
+    onClose()
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+    await restoreWorkspaceSnapshot(snapshot)
+  }
 
   if (!isOpen) return null
 
   return (
     <div className="modal-backdrop" role="presentation">
-      <section className="history-modal" role="dialog" aria-modal="true" aria-label="Session history">
+      <section className="history-modal" role="dialog" aria-modal="true" aria-label={t('sessionHistory')}>
         <header className="history-header">
           <div>
             <h2>{t('sessionHistory')}</h2>
@@ -37,18 +52,39 @@ export function SessionHistory({ isOpen, onClose }: SessionHistoryProps): ReactE
             {t('close')}
           </button>
         </header>
-        <div className="history-list">
-          {logs.length === 0 ? (
-            <div className="history-empty">{t('noLogs')}</div>
-          ) : (
-            logs.map((log) => (
-              <button key={log.path} type="button" onClick={() => void window.smartShell.terminal.openLogFile(log.path)}>
-                <strong>{log.name}</strong>
-                <span>{new Date(log.modifiedAt).toLocaleString()}</span>
-                <small>{formatSize(log.size)}</small>
-              </button>
-            ))
-          )}
+        <div className="history-content">
+          <section className="history-section">
+            <h3>{t('savedWorkspaces')}</h3>
+            <div className="history-list">
+              {snapshots.length === 0 ? (
+                <div className="history-empty">{t('noSavedWorkspaces')}</div>
+              ) : (
+                snapshots.map((snapshot) => (
+                  <button key={snapshot.id} type="button" onClick={() => void restoreSnapshot(snapshot)}>
+                    <strong>{snapshot.name}</strong>
+                    <span>{new Date(snapshot.updatedAt).toLocaleString()}</span>
+                    <small>{t('terminalCount', { count: snapshot.state.terminals.length })} · {t('restoreWorkspace')}</small>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+          <section className="history-section">
+            <h3>{t('terminalLogs')}</h3>
+            <div className="history-list">
+              {logs.length === 0 ? (
+                <div className="history-empty">{t('noLogs')}</div>
+              ) : (
+                logs.map((log) => (
+                  <button key={log.path} type="button" onClick={() => void window.smartShell.terminal.openLogFile(log.path)}>
+                    <strong>{log.name}</strong>
+                    <span>{new Date(log.modifiedAt).toLocaleString()}</span>
+                    <small>{formatSize(log.size)}</small>
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       </section>
     </div>

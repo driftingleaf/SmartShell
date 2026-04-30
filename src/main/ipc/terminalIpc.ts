@@ -91,4 +91,12 @@ export function registerIpcHandlers(
   ipcMain.handle('workspace:save', (_event, workspace: WorkspaceState) => {
     return workspaceManager.save(workspace)
   })
+
+  ipcMain.handle('workspace:list-snapshots', () => {
+    return workspaceManager.listSnapshots()
+  })
+
+  ipcMain.handle('workspace:save-snapshot', (_event, workspace: WorkspaceState) => {
+    return workspaceManager.saveSnapshot(workspace)
+  })
 }

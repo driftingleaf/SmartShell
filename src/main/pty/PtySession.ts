@@ -5,6 +5,8 @@ import path from 'node:path'
 import { spawn, type IPty } from 'node-pty'
 import type { TerminalSession } from '@shared/types'
 
+const ansiPattern = /\x1b\[[0-9;?]*[ -/]*[@-~]/g
+
 export type PtySessionOptions = {
   id: string
   title: string
@@ -62,6 +64,7 @@ export class PtySession extends EventEmitter {
 
     this.pty.onData((data) => {
       this.logStream?.write(data)
+      this.updateCwdFromOutput(data)
       this.emit('data', data)
     })
 
@@ -92,6 +95,22 @@ export class PtySession extends EventEmitter {
       customTitle: true
     }
     return this.metadata
+  }
+
+  private updateCwdFromOutput(data: string): void {
+    const text = data.replace(ansiPattern, '')
+    const matches = [
+      ...text.matchAll(/PS ((?:[A-Za-z]:|\\\\)[^>\r\n]*)>/g),
+      ...text.matchAll(/(?:^|\r|\n)((?:[A-Za-z]:|\\\\)[^>\r\n]*)>/g)
+    ]
+
+    for (const match of matches) {
+      const cwd = match[1]?.trim()
+      if (cwd && path.isAbsolute(cwd) && cwd !== this.metadata.cwd) {
+        this.metadata = { ...this.metadata, cwd }
+        this.emit('cwd', cwd)
+      }
+    }
   }
 
   kill(): void {

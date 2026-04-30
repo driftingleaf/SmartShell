@@ -1,5 +1,6 @@
 import { type ReactElement, useEffect, useState } from 'react'
 import { AgentPanel } from './components/AgentPanel'
+import { AppTitleBar } from './components/AppTitleBar'
 import { AppToolbar } from './components/AppToolbar'
 import { CommandPalette } from './components/CommandPalette'
 import { LayoutRoot } from './components/LayoutRoot'
@@ -12,8 +13,10 @@ import { useTerminalStore } from './store/terminalStore'
 export function App(): ReactElement {
   const loadInitialState = useTerminalStore((state) => state.loadInitialState)
   const saveWorkspace = useTerminalStore((state) => state.saveWorkspace)
+  const saveWorkspaceSnapshot = useTerminalStore((state) => state.saveWorkspaceSnapshot)
   const createTerminal = useTerminalStore((state) => state.createTerminal)
   const markExited = useTerminalStore((state) => state.markExited)
+  const updateTerminalCwd = useTerminalStore((state) => state.updateTerminalCwd)
   const captureTerminalOutput = useTerminalStore((state) => state.captureTerminalOutput)
   const sessions = useTerminalStore((state) => state.sessions)
   const layout = useTerminalStore((state) => state.layout)
@@ -44,18 +47,24 @@ export function App(): ReactElement {
       captureTerminalOutput(event.id, event.data)
     })
 
+    const removeCwdListener = window.smartShell.terminal.onCwdChange((event) => {
+      updateTerminalCwd(event.id, event.cwd)
+    })
+
     const removeExitListener = window.smartShell.terminal.onExit((event) => {
       markExited(event.id)
     })
 
     return () => {
       removeDataListener()
+      removeCwdListener()
       removeExitListener()
     }
-  }, [captureTerminalOutput, loadInitialState, markExited])
+  }, [captureTerminalOutput, loadInitialState, markExited, updateTerminalCwd])
 
   useEffect(() => {
     if (!isReady || error) return
+    if (sessions.length === 0 && layout === undefined) return
 
     const timeoutId = window.setTimeout(() => {
       void saveWorkspace()
@@ -81,13 +90,14 @@ export function App(): ReactElement {
   }, [createTerminal])
 
   const handleSaveWorkspace = async (): Promise<void> => {
-    await saveWorkspace()
+    await saveWorkspaceSnapshot()
     setMessage(t('workspaceSaved'))
     window.setTimeout(() => setMessage(''), 1800)
   }
 
   return (
     <div className="app-shell">
+      <AppTitleBar />
       <AppToolbar
         onEditProfiles={() => setIsProfileEditorOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}

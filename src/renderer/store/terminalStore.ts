@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CreateTerminalRequest, TerminalProfile, TerminalSession, WorkspaceState } from '@shared/types'
+import type { CreateTerminalRequest, TerminalProfile, TerminalSession, WorkspaceSnapshot, WorkspaceState } from '@shared/types'
 
 export type AgentSignal = {
   label: string
@@ -8,6 +8,24 @@ export type AgentSignal = {
 }
 
 const stripAnsi = (value: string): string => value.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+
+const remapLayoutIds = (value: unknown, idMap: Record<string, string>): unknown => {
+  if (typeof value === 'string') {
+    return idMap[value] ?? value
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => remapLayoutIds(item, idMap))
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [idMap[key] ?? key, remapLayoutIds(item, idMap)])
+    )
+  }
+
+  return value
+}
 
 const parseAgentSignal = (data: string): Pick<AgentSignal, 'label' | 'detail'> | undefined => {
   const text = stripAnsi(data)
@@ -38,6 +56,7 @@ type TerminalState = {
   workspaceCwd: string
   layout?: unknown
   activeSessionId?: string
+  workspaceGeneration: number
   agentSignals: Record<string, AgentSignal>
   loadInitialState(): Promise<void>
   createTerminal(profileId?: string): Promise<TerminalSession>
@@ -49,16 +68,20 @@ type TerminalState = {
   restartTerminal(id: string): Promise<void>
   duplicateTerminal(id: string): Promise<void>
   markExited(id: string): void
+  updateTerminalCwd(id: string, cwd: string): void
   captureTerminalOutput(id: string, data: string): void
   setActiveSession(id: string): void
   setLayout(layout: unknown): void
   saveWorkspace(layout?: unknown): Promise<void>
+  saveWorkspaceSnapshot(layout?: unknown): Promise<WorkspaceSnapshot>
+  restoreWorkspaceSnapshot(snapshot: WorkspaceSnapshot): Promise<void>
 }
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   sessions: [],
   profiles: [],
   workspaceCwd: '',
+  workspaceGeneration: 0,
   agentSignals: {},
 
   async loadInitialState() {
@@ -73,35 +96,10 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     set({
       profiles,
       workspaceCwd,
-      layout: workspace.layout,
+      layout: sessions.length > 0 ? workspace.layout : undefined,
       sessions,
       activeSessionId: sessions[0]?.id
     })
-
-    if (sessions.length === 0 && workspace.terminals.length > 0) {
-      const restoredSessions: TerminalSession[] = []
-      for (const savedSession of workspace.terminals) {
-        restoredSessions.push(
-          await window.smartShell.terminal.create({
-            id: savedSession.id,
-            profileId: savedSession.profileId,
-            shell: savedSession.shell,
-            args: savedSession.args,
-            cwd: savedSession.cwd || workspaceCwd,
-            title: savedSession.title
-          })
-        )
-      }
-      set({
-        sessions: restoredSessions,
-        activeSessionId: restoredSessions[0]?.id
-      })
-      return
-    }
-
-    if (sessions.length === 0) {
-      void get().createTerminal('powershell').catch((reason: unknown) => console.error(reason))
-    }
   },
 
   async createTerminal(profileId?: string) {
@@ -181,6 +179,12 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     }))
   },
 
+  updateTerminalCwd(id: string, cwd: string) {
+    set((state) => ({
+      sessions: state.sessions.map((session) => (session.id === id ? { ...session, cwd } : session))
+    }))
+  },
+
   captureTerminalOutput(id: string, data: string) {
     const signal = parseAgentSignal(data)
     if (!signal) return
@@ -213,5 +217,58 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     }
     await window.smartShell.workspace.save(workspace)
     set({ layout: workspace.layout })
+  },
+
+  async saveWorkspaceSnapshot(layout?: unknown) {
+    const state = get()
+    const workspace: WorkspaceState = {
+      cwd: state.workspaceCwd,
+      layout: layout ?? state.layout,
+      terminals: state.sessions
+    }
+    const snapshot = await window.smartShell.workspace.saveSnapshot(workspace)
+    set({ layout: workspace.layout })
+    return snapshot
+  },
+
+  async restoreWorkspaceSnapshot(snapshot: WorkspaceSnapshot) {
+    const currentSessions = get().sessions
+    for (const session of currentSessions) {
+      await window.smartShell.terminal.kill(session.id)
+    }
+
+    const workspaceCwd = snapshot.state.cwd || get().workspaceCwd
+
+    set((state) => ({
+      sessions: [],
+      activeSessionId: undefined,
+      agentSignals: {},
+      workspaceCwd,
+      layout: undefined,
+      workspaceGeneration: state.workspaceGeneration + 1
+    }))
+
+    await new Promise((resolve) => window.setTimeout(resolve, 0))
+
+    const restoredSessions: TerminalSession[] = []
+    const idMap: Record<string, string> = {}
+
+    for (const savedSession of snapshot.state.terminals) {
+      const restoredSession = await window.smartShell.terminal.create({
+        profileId: savedSession.profileId,
+        shell: savedSession.shell,
+        args: savedSession.args,
+        cwd: savedSession.cwd || workspaceCwd,
+        title: savedSession.title
+      })
+      restoredSessions.push(restoredSession)
+      idMap[savedSession.id] = restoredSession.id
+    }
+
+    set({
+      layout: remapLayoutIds(snapshot.state.layout, idMap),
+      sessions: restoredSessions,
+      activeSessionId: restoredSessions[0]?.id
+    })
   }
 }))

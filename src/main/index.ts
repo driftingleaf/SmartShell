@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc/terminalIpc'
@@ -13,6 +13,30 @@ const workspaceManager = new WorkspaceManager()
 const ptyManager = new PtyManager(profileManager, () => mainWindow)
 const appIcon = join(__dirname, '../../build/icon.ico')
 
+function registerWindowIpc(): void {
+  ipcMain.handle('window:minimize', () => {
+    mainWindow?.minimize()
+  })
+
+  ipcMain.handle('window:toggle-maximize', () => {
+    if (!mainWindow) return false
+
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize()
+      return false
+    }
+
+    mainWindow.maximize()
+    return true
+  })
+
+  ipcMain.handle('window:close', () => {
+    mainWindow?.close()
+  })
+
+  ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false)
+}
+
 function createWindow(): void {
   Menu.setApplicationMenu(null)
 
@@ -23,6 +47,8 @@ function createWindow(): void {
     minHeight: 600,
     title: 'SmartShell',
     icon: appIcon,
+    frame: false,
+    titleBarStyle: 'hidden',
     autoHideMenuBar: true,
     backgroundColor: '#0f1117',
     webPreferences: {
@@ -46,6 +72,7 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   await profileManager.load()
+  registerWindowIpc()
   registerIpcHandlers(ptyManager, profileManager, workspaceManager)
   createWindow()
 

@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   CreateTerminalRequest,
   SmartShellApi,
+  TerminalCwdEvent,
   TerminalDataEvent,
   TerminalExitEvent,
   TerminalRenameRequest,
@@ -27,6 +28,11 @@ const api: SmartShellApi = {
       ipcRenderer.on('terminal:data', listener)
       return () => ipcRenderer.off('terminal:data', listener)
     },
+    onCwdChange: (callback: (event: TerminalCwdEvent) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, payload: TerminalCwdEvent): void => callback(payload)
+      ipcRenderer.on('terminal:cwd', listener)
+      return () => ipcRenderer.off('terminal:cwd', listener)
+    },
     onExit: (callback: (event: TerminalExitEvent) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: TerminalExitEvent): void => callback(payload)
       ipcRenderer.on('terminal:exit', listener)
@@ -41,7 +47,15 @@ const api: SmartShellApi = {
     getDefaultCwd: () => ipcRenderer.invoke('workspace:get-default-cwd'),
     selectFolder: () => ipcRenderer.invoke('workspace:select-folder'),
     load: () => ipcRenderer.invoke('workspace:load'),
-    save: (workspace: WorkspaceState) => ipcRenderer.invoke('workspace:save', workspace)
+    save: (workspace: WorkspaceState) => ipcRenderer.invoke('workspace:save', workspace),
+    listSnapshots: () => ipcRenderer.invoke('workspace:list-snapshots'),
+    saveSnapshot: (workspace: WorkspaceState) => ipcRenderer.invoke('workspace:save-snapshot', workspace)
+  },
+  window: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () => ipcRenderer.invoke('window:is-maximized')
   }
 }
 

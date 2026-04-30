@@ -16,13 +16,35 @@ export function LayoutRoot(): ReactElement {
   const createTerminal = useTerminalStore((state) => state.createTerminal)
   const layout = useTerminalStore((state) => state.layout)
   const activeSessionId = useTerminalStore((state) => state.activeSessionId)
+  const workspaceGeneration = useTerminalStore((state) => state.workspaceGeneration)
   const setActiveSession = useTerminalStore((state) => state.setActiveSession)
   const setLayout = useTerminalStore((state) => state.setLayout)
   const closeTerminal = useTerminalStore((state) => state.closeTerminal)
   const apiRef = useRef<unknown>(null)
   const restoredRef = useRef(false)
   const knownPanelsRef = useRef(new Set<string>())
+  const dockviewDisposablesRef = useRef<Array<{ dispose(): void }>>([])
   const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      for (const disposable of dockviewDisposablesRef.current) {
+        disposable.dispose()
+      }
+      dockviewDisposablesRef.current = []
+    }
+  }, [])
+
+  useEffect(() => {
+    for (const disposable of dockviewDisposablesRef.current) {
+      disposable.dispose()
+    }
+    dockviewDisposablesRef.current = []
+    apiRef.current = null
+    restoredRef.current = false
+    knownPanelsRef.current.clear()
+    setReady(false)
+  }, [workspaceGeneration])
 
   useEffect(() => {
     if (sessions.length === 0) {
@@ -108,29 +130,30 @@ export function LayoutRoot(): ReactElement {
   }
 
   return (
-    <div className="dockview-theme-abyss layout-root">
+    <div key={workspaceGeneration} className="dockview-theme-abyss layout-root">
       <DockviewReact
+        key={workspaceGeneration}
         components={components}
         onReady={(event) => {
           apiRef.current = event.api
           setReady(true)
 
-          event.api.onDidActivePanelChange((activePanel) => {
-            if (activePanel) {
-              setActiveSession(activePanel.id)
-            }
-          })
-
-          event.api.onDidRemovePanel((panel) => {
-            if (knownPanelsRef.current.has(panel.id)) {
-              knownPanelsRef.current.delete(panel.id)
-              void closeTerminal(panel.id)
-            }
-          })
-
-          event.api.onDidLayoutChange(() => {
-            setLayout(event.api.toJSON())
-          })
+          dockviewDisposablesRef.current = [
+            event.api.onDidActivePanelChange((activePanel) => {
+              if (activePanel) {
+                setActiveSession(activePanel.id)
+              }
+            }),
+            event.api.onDidRemovePanel((panel) => {
+              if (knownPanelsRef.current.has(panel.id)) {
+                knownPanelsRef.current.delete(panel.id)
+                void closeTerminal(panel.id)
+              }
+            }),
+            event.api.onDidLayoutChange(() => {
+              setLayout(event.api.toJSON())
+            })
+          ]
         }}
       />
     </div>

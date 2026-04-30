@@ -1,9 +1,8 @@
-import { type ReactElement, useEffect, useRef, useState } from 'react'
+import { type MouseEvent, type ReactElement, useEffect, useRef } from 'react'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import type { IDockviewPanelProps } from 'dockview'
 import { getTerminalTheme, useSettingsStore } from '@renderer/store/settingsStore'
-import { useTerminalStore } from '@renderer/store/terminalStore'
 import { TerminalHeader } from './TerminalHeader'
 import '@xterm/xterm/css/xterm.css'
 
@@ -15,12 +14,35 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
-  const restartTerminal = useTerminalStore((state) => state.restartTerminal)
-  const duplicateTerminal = useTerminalStore((state) => state.duplicateTerminal)
-  const closeTerminal = useTerminalStore((state) => state.closeTerminal)
   const theme = useSettingsStore((state) => state.theme)
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const sessionId = props.params.sessionId
+
+  const focusTerminal = (): void => {
+    const terminal = terminalRef.current
+    if (!terminal) return
+
+    terminal.focus()
+    terminal.refresh(0, terminal.rows - 1)
+  }
+
+  const handleContextMenu = async (event: MouseEvent<HTMLDivElement>): Promise<void> => {
+    event.preventDefault()
+    const terminal = terminalRef.current
+    if (!terminal) return
+
+    const selection = terminal.getSelection()
+    if (selection) {
+      await navigator.clipboard.writeText(selection)
+      terminal.clearSelection()
+    } else {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        terminal.paste(text)
+      }
+    }
+
+    terminal.focus()
+  }
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -29,6 +51,7 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
       cursorBlink: true,
       fontFamily: 'Cascadia Mono, Consolas, monospace',
       fontSize: 13,
+      smoothScrollDuration: 0,
       theme: getTerminalTheme(useSettingsStore.getState().theme),
       allowProposedApi: false
     })
@@ -36,7 +59,6 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
 
     terminal.loadAddon(fitAddon)
     terminal.open(containerRef.current)
-    terminal.focus()
 
     const fit = (): void => {
       fitAddon.fit()
@@ -47,17 +69,46 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
       })
     }
 
-    const frame = window.requestAnimationFrame(fit)
+    const focusAndFit = (): void => {
+      fit()
+      terminal.focus()
+      terminal.refresh(0, terminal.rows - 1)
+    }
+
+    const frame = window.requestAnimationFrame(focusAndFit)
+    const settleFrame = window.requestAnimationFrame(() => window.requestAnimationFrame(focusAndFit))
+    const settleTimeout = window.setTimeout(focusAndFit, 120)
     const resizeObserver = new ResizeObserver(fit)
     resizeObserver.observe(containerRef.current)
+
+    let refreshFrame: number | null = null
+    const scheduleRefresh = (stabilizeAlternateBuffer = false): void => {
+      if (refreshFrame !== null) return
+
+      refreshFrame = window.requestAnimationFrame(() => {
+        refreshFrame = null
+        if (stabilizeAlternateBuffer && terminal.buffer.active.type === 'alternate') {
+          terminal.scrollToBottom()
+        }
+        terminal.refresh(0, terminal.rows - 1)
+      })
+    }
 
     const inputDisposable = terminal.onData((data) => {
       window.smartShell.terminal.write({ id: sessionId, data })
     })
 
+    const scrollDisposable = terminal.onScroll(() => {
+      scheduleRefresh(true)
+    })
+
+    const bufferDisposable = terminal.buffer.onBufferChange(() => {
+      scheduleRefresh(true)
+    })
+
     const removeDataListener = window.smartShell.terminal.onData((event) => {
       if (event.id === sessionId) {
-        terminal.write(event.data)
+        terminal.write(event.data, () => scheduleRefresh(terminal.buffer.active.type === 'alternate'))
       }
     })
 
@@ -66,8 +117,15 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
 
     return () => {
       window.cancelAnimationFrame(frame)
+      window.cancelAnimationFrame(settleFrame)
+      window.clearTimeout(settleTimeout)
+      if (refreshFrame !== null) {
+        window.cancelAnimationFrame(refreshFrame)
+      }
       removeDataListener()
       inputDisposable.dispose()
+      scrollDisposable.dispose()
+      bufferDisposable.dispose()
       resizeObserver.disconnect()
       terminal.dispose()
       terminalRef.current = null
@@ -81,42 +139,16 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
     }
   }, [theme])
 
-  const copySelection = async (): Promise<void> => {
-    const selection = terminalRef.current?.getSelection()
-    if (selection) {
-      await navigator.clipboard.writeText(selection)
-    }
-  }
-
-  const pasteClipboard = async (): Promise<void> => {
-    const text = await navigator.clipboard.readText()
-    if (text) {
-      await window.smartShell.terminal.write({ id: sessionId, data: text })
-    }
-  }
-
   return (
-    <div className="terminal-panel-shell" onClick={() => setMenu(null)}>
+    <div className="terminal-panel-shell">
       <TerminalHeader sessionId={sessionId} />
       <div
         ref={containerRef}
         className="terminal-panel"
-        onContextMenu={(event) => {
-          event.preventDefault()
-          setMenu({ x: event.clientX, y: event.clientY })
-        }}
+        onPointerDown={focusTerminal}
+        onFocus={focusTerminal}
+        onContextMenu={(event) => void handleContextMenu(event)}
       />
-      {menu && (
-        <div className="terminal-context-menu" style={{ left: menu.x, top: menu.y }}>
-          <button type="button" onClick={() => void copySelection()}>Copy</button>
-          <button type="button" onClick={() => void pasteClipboard()}>Paste</button>
-          <button type="button" onClick={() => terminalRef.current?.clear()}>Clear</button>
-          <hr />
-          <button type="button" onClick={() => void restartTerminal(sessionId)}>Restart</button>
-          <button type="button" onClick={() => void duplicateTerminal(sessionId)}>Duplicate</button>
-          <button type="button" onClick={() => void closeTerminal(sessionId)}>Close</button>
-        </div>
-      )}
     </div>
   )
 }

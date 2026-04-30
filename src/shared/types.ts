@@ -59,6 +59,11 @@ export type TerminalExitEvent = {
   signal?: number
 }
 
+export type TerminalCwdEvent = {
+  id: string
+  cwd: string
+}
+
 export type TerminalLogEntry = {
   name: string
   path: string
@@ -70,6 +75,14 @@ export type WorkspaceState = {
   cwd?: string
   layout?: unknown
   terminals: TerminalSession[]
+}
+
+export type WorkspaceSnapshot = {
+  id: string
+  name: string
+  createdAt: string
+  updatedAt: string
+  state: WorkspaceState
 }
 
 export type SmartShellApi = {
@@ -85,6 +98,7 @@ export type SmartShellApi = {
     openLog(id: string): Promise<void>
     openLogFile(path: string): Promise<void>
     onData(callback: (event: TerminalDataEvent) => void): () => void
+    onCwdChange(callback: (event: TerminalCwdEvent) => void): () => void
     onExit(callback: (event: TerminalExitEvent) => void): () => void
   }
   profiles: {
@@ -96,5 +110,13 @@ export type SmartShellApi = {
     selectFolder(): Promise<string | undefined>
     load(): Promise<WorkspaceState>
     save(workspace: WorkspaceState): Promise<void>
+    listSnapshots(): Promise<WorkspaceSnapshot[]>
+    saveSnapshot(workspace: WorkspaceState): Promise<WorkspaceSnapshot>
+  }
+  window: {
+    minimize(): Promise<void>
+    toggleMaximize(): Promise<boolean>
+    close(): Promise<void>
+    isMaximized(): Promise<boolean>
   }
 }

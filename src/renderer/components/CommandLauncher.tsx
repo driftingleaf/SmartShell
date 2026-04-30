@@ -24,23 +24,20 @@ export function CommandLauncher(): ReactElement {
 
   return (
     <div className="command-launcher">
-      <div className="split-launcher" title={t('newTerminal')}>
-        <button className="split-launcher-main" type="button" aria-label={t('newTerminal')} onClick={() => void createTerminal('powershell')}>
+      <details className="split-launcher" title={t('newTerminal')}>
+        <summary className="split-launcher-main" aria-label={t('newTerminal')} title={t('newTerminal')}>
           <PlusIcon />
-        </button>
-        <details className="split-launcher-menu">
-          <summary aria-label={t('newTerminal')} title={t('newTerminal')}>
-            <ChevronIcon />
-          </summary>
-          <div className="split-launcher-options" onClick={closeMenu}>
-            {profiles.map((profile) => (
-              <button key={profile.id} type="button" onClick={() => void createTerminal(profile.id)}>
-                {profile.name}
-              </button>
-            ))}
-          </div>
-        </details>
-      </div>
+          <span>{t('newTerminal')}</span>
+          <ChevronIcon />
+        </summary>
+        <div className="split-launcher-options" onClick={closeMenu}>
+          {profiles.map((profile) => (
+            <button key={profile.id} type="button" onClick={() => void createTerminal(profile.id)}>
+              {profile.name}
+            </button>
+          ))}
+        </div>
+      </details>
     </div>
   )
 }

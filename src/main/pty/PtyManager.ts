@@ -44,6 +44,10 @@ export class PtyManager {
       this.getWindow()?.webContents.send('terminal:data', { id, data })
     })
 
+    session.on('cwd', (cwd: string) => {
+      this.getWindow()?.webContents.send('terminal:cwd', { id, cwd })
+    })
+
     session.on('exit', (event: { exitCode?: number; signal?: number }) => {
       if (this.sessions.get(id) === session) {
         this.getWindow()?.webContents.send('terminal:exit', { id, ...event })
