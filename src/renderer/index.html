@@ -29,23 +29,68 @@
       .boot-card {
         display: grid;
         justify-items: center;
-        gap: 10px;
+        gap: 14px;
       }
 
       .boot-card p {
         margin: 0;
         color: #7f8ca8;
+        font-size: 13px;
       }
 
       .boot-mark {
         display: grid;
-        width: 46px;
-        height: 46px;
+        width: 56px;
+        height: 56px;
         place-items: center;
-        border-radius: 14px;
+        border-radius: 16px;
         background: linear-gradient(135deg, #5de4c7, #82aaff);
         color: #07111f;
         font-weight: 800;
+        font-size: 24px;
+        animation: boot-pulse 1.6s ease-in-out infinite;
+        box-shadow: 0 0 30px rgb(93 228 199 / 25%);
+      }
+
+      .boot-title {
+        animation: boot-fade-in 0.5s ease-out 0.3s both;
+      }
+
+      .boot-subtitle {
+        animation: boot-fade-in 0.5s ease-out 0.5s both;
+      }
+
+      .boot-bar-track {
+        width: 120px;
+        height: 3px;
+        border-radius: 2px;
+        background: #23283a;
+        overflow: hidden;
+        animation: boot-fade-in 0.4s ease-out 0.6s both;
+      }
+
+      .boot-bar-fill {
+        width: 40%;
+        height: 100%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #5de4c7, #82aaff);
+        animation: boot-slide 1.2s ease-in-out infinite;
+      }
+
+      @keyframes boot-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.06); opacity: 0.85; }
+      }
+
+      @keyframes boot-fade-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes boot-slide {
+        0% { transform: translateX(-100%); }
+        50% { transform: translateX(200%); }
+        100% { transform: translateX(-100%); }
       }
     </style>
   </head>
@@ -54,8 +99,9 @@
       <main class="boot-splash">
         <div class="boot-card">
           <span class="boot-mark">S</span>
-          <strong>SmartShell</strong>
-          <p>Loading workspace...</p>
+          <strong class="boot-title">SmartShell</strong>
+          <p class="boot-subtitle">Loading workspace...</p>
+          <div class="boot-bar-track"><div class="boot-bar-fill"></div></div>
         </div>
       </main>
     </div>
