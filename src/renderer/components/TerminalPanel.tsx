@@ -18,11 +18,7 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
   const sessionId = props.params.sessionId
 
   const focusTerminal = (): void => {
-    const terminal = terminalRef.current
-    if (!terminal) return
-
-    terminal.focus()
-    terminal.refresh(0, terminal.rows - 1)
+    terminalRef.current?.focus()
   }
 
   const handleContextMenu = async (event: MouseEvent<HTMLDivElement>): Promise<void> => {
@@ -52,6 +48,7 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
       fontFamily: 'Cascadia Mono, Consolas, monospace',
       fontSize: 13,
       smoothScrollDuration: 0,
+      scrollback: 10000,
       theme: getTerminalTheme(useSettingsStore.getState().theme),
       allowProposedApi: false
     })
@@ -60,7 +57,11 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
     terminal.loadAddon(fitAddon)
     terminal.open(containerRef.current)
 
+    let savedScrollY = terminal.buffer.active.viewportY
+
     const fit = (): void => {
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (!rect || rect.width === 0 || rect.height === 0) return
       fitAddon.fit()
       window.smartShell.terminal.resize({
         id: sessionId,
@@ -72,7 +73,6 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
     const focusAndFit = (): void => {
       fit()
       terminal.focus()
-      terminal.refresh(0, terminal.rows - 1)
     }
 
     const frame = window.requestAnimationFrame(focusAndFit)
@@ -81,34 +81,26 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
     const resizeObserver = new ResizeObserver(fit)
     resizeObserver.observe(containerRef.current)
 
-    let refreshFrame: number | null = null
-    const scheduleRefresh = (stabilizeAlternateBuffer = false): void => {
-      if (refreshFrame !== null) return
-
-      refreshFrame = window.requestAnimationFrame(() => {
-        refreshFrame = null
-        if (stabilizeAlternateBuffer && terminal.buffer.active.type === 'alternate') {
-          terminal.scrollToBottom()
-        }
-        terminal.refresh(0, terminal.rows - 1)
-      })
-    }
+    const visibilityDisposable = props.api.onDidVisibilityChange?.((event: { isVisible: boolean }) => {
+      if (event.isVisible) {
+        window.requestAnimationFrame(() => {
+          fit()
+          terminal.scrollLines(savedScrollY - terminal.buffer.active.viewportY)
+          terminal.refresh(0, terminal.rows - 1)
+          terminal.focus()
+        })
+      } else {
+        savedScrollY = terminal.buffer.active.viewportY
+      }
+    })
 
     const inputDisposable = terminal.onData((data) => {
       window.smartShell.terminal.write({ id: sessionId, data })
     })
 
-    const scrollDisposable = terminal.onScroll(() => {
-      scheduleRefresh(true)
-    })
-
-    const bufferDisposable = terminal.buffer.onBufferChange(() => {
-      scheduleRefresh(true)
-    })
-
     const removeDataListener = window.smartShell.terminal.onData((event) => {
       if (event.id === sessionId) {
-        terminal.write(event.data, () => scheduleRefresh(terminal.buffer.active.type === 'alternate'))
+        terminal.write(event.data)
       }
     })
 
@@ -119,13 +111,9 @@ export function TerminalPanel(props: IDockviewPanelProps<TerminalPanelParams>): 
       window.cancelAnimationFrame(frame)
       window.cancelAnimationFrame(settleFrame)
       window.clearTimeout(settleTimeout)
-      if (refreshFrame !== null) {
-        window.cancelAnimationFrame(refreshFrame)
-      }
       removeDataListener()
       inputDisposable.dispose()
-      scrollDisposable.dispose()
-      bufferDisposable.dispose()
+      visibilityDisposable?.dispose()
       resizeObserver.disconnect()
       terminal.dispose()
       terminalRef.current = null

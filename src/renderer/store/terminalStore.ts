@@ -9,6 +9,9 @@ export type AgentSignal = {
 
 const stripAnsi = (value: string): string => value.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
 
+const ACTIVE_SIGNAL_MIN_INTERVAL_MS = 2000
+const lastActiveUpdate = new Map<string, number>()
+
 const remapLayoutIds = (value: unknown, idMap: Record<string, string>): unknown => {
   if (typeof value === 'string') {
     return idMap[value] ?? value
@@ -189,15 +192,28 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const signal = parseAgentSignal(data)
     if (!signal) return
 
-    set((state) => ({
-      agentSignals: {
-        ...state.agentSignals,
-        [id]: {
-          ...signal,
-          updatedAt: new Date().toISOString()
+    if (signal.label === 'Active') {
+      const now = Date.now()
+      const last = lastActiveUpdate.get(id) ?? 0
+      if (now - last < ACTIVE_SIGNAL_MIN_INTERVAL_MS) return
+      lastActiveUpdate.set(id, now)
+    }
+
+    set((state) => {
+      const prev = state.agentSignals[id]
+      if (prev && prev.label === signal.label && prev.detail === signal.detail) {
+        return state
+      }
+      return {
+        agentSignals: {
+          ...state.agentSignals,
+          [id]: {
+            ...signal,
+            updatedAt: new Date().toISOString()
+          }
         }
       }
-    }))
+    })
   },
 
   setActiveSession(id: string) {

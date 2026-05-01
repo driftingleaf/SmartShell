@@ -22,11 +22,8 @@ export function SessionHistory({ onClose }: SessionHistoryProps): ReactElement |
   const restoreWorkspaceSnapshot = useTerminalStore((state) => state.restoreWorkspaceSnapshot)
   const [logs, setLogs] = useState<TerminalLogEntry[]>([])
   const [snapshots, setSnapshots] = useState<WorkspaceSnapshot[]>([])
-  const [confirming, setConfirming] = useState(false)
-
   useEffect(() => {
     if (!isOpen) return
-    setConfirming(false)
 
     void Promise.all([
       window.smartShell.workspace.listSnapshots(),
@@ -45,10 +42,6 @@ export function SessionHistory({ onClose }: SessionHistoryProps): ReactElement |
 
   if (!isOpen) return null
 
-  const requestClose = (): void => {
-    setConfirming(true)
-  }
-
   const handleBackdropClick = (e: React.MouseEvent): void => {
     if (e.target === e.currentTarget) {
       bringToTop('sessionHistory')
@@ -63,7 +56,7 @@ export function SessionHistory({ onClose }: SessionHistoryProps): ReactElement |
             <h2>{t('sessionHistory')}</h2>
             <p>{t('sessionHistoryDescription')}</p>
           </div>
-          <button type="button" onClick={requestClose}>
+          <button type="button" onClick={onClose}>
             {t('close')}
           </button>
         </header>
@@ -101,15 +94,6 @@ export function SessionHistory({ onClose }: SessionHistoryProps): ReactElement |
             </div>
           </section>
         </div>
-        {confirming && (
-          <div className="close-confirm">
-            <span>{t('confirmClose')}</span>
-            <div className="close-confirm-actions">
-              <button type="button" onClick={() => setConfirming(false)}>{t('cancel')}</button>
-              <button type="button" onClick={onClose}>{t('close')}</button>
-            </div>
-          </div>
-        )}
       </section>
     </div>
   )

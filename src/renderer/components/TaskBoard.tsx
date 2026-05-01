@@ -44,25 +44,16 @@ export function TaskBoard({ onClose }: TaskBoardProps): ReactElement | null {
   const [tasks, setTasks] = useState<BoardTask[]>(loadTasks)
   const [title, setTitle] = useState('')
   const [sessionId, setSessionId] = useState('')
-  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(tasks))
   }, [tasks])
-
-  useEffect(() => {
-    if (isOpen) setConfirming(false)
-  }, [isOpen])
 
   const sessionTitles = useMemo(() => {
     return new Map(sessions.map((session) => [session.id, session.title]))
   }, [sessions])
 
   if (!isOpen) return null
-
-  const requestClose = (): void => {
-    setConfirming(true)
-  }
 
   const addTask = (event: FormEvent): void => {
     event.preventDefault()
@@ -103,7 +94,7 @@ export function TaskBoard({ onClose }: TaskBoardProps): ReactElement | null {
             <h2>{t('taskBoard')}</h2>
             <p>{t('taskBoardDescription')}</p>
           </div>
-          <button type="button" onClick={requestClose}>
+          <button type="button" onClick={onClose}>
             {t('close')}
           </button>
         </header>
@@ -153,15 +144,6 @@ export function TaskBoard({ onClose }: TaskBoardProps): ReactElement | null {
             </section>
           ))}
         </div>
-        {confirming && (
-          <div className="close-confirm">
-            <span>{t('confirmClose')}</span>
-            <div className="close-confirm-actions">
-              <button type="button" onClick={() => setConfirming(false)}>{t('cancel')}</button>
-              <button type="button" onClick={onClose}>{t('close')}</button>
-            </div>
-          </div>
-        )}
       </section>
     </div>
   )
