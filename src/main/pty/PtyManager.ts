@@ -74,6 +74,18 @@ export class PtyManager {
     return this.requireSession(id).rename(title.trim() || 'Terminal')
   }
 
+  ack(id: string, chars: number): void {
+    this.sessions.get(id)?.ack(chars)
+  }
+
+  pauseSession(id: string): void {
+    this.sessions.get(id)?.pause()
+  }
+
+  resumeSession(id: string): void {
+    this.sessions.get(id)?.resume()
+  }
+
   getLogPath(id: string): string | undefined {
     return this.requireSession(id).getMeta().logPath
   }

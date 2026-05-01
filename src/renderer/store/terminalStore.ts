@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CreateTerminalRequest, TerminalProfile, TerminalSession, WorkspaceSnapshot, WorkspaceState } from '@shared/types'
+import type { CreateTerminalRequest, TerminalProfile, TerminalSerializedData, TerminalSession, WorkspaceSnapshot, WorkspaceState } from '@shared/types'
 
 export type AgentSignal = {
   label: string
@@ -11,6 +11,23 @@ const stripAnsi = (value: string): string => value.replace(/\x1b\[[0-9;?]*[ -/]*
 
 const ACTIVE_SIGNAL_MIN_INTERVAL_MS = 2000
 const lastActiveUpdate = new Map<string, number>()
+
+const serializeRegistry = new Map<string, { serialize(): string }>()
+const pendingSerializedContent = new Map<string, string>()
+
+export function registerSerializer(id: string, addon: { serialize(): string }): void {
+  serializeRegistry.set(id, addon)
+}
+
+export function unregisterSerializer(id: string): void {
+  serializeRegistry.delete(id)
+}
+
+export function consumePendingContent(id: string): string | undefined {
+  const content = pendingSerializedContent.get(id)
+  if (content) pendingSerializedContent.delete(id)
+  return content
+}
 
 const remapLayoutIds = (value: unknown, idMap: Record<string, string>): unknown => {
   if (typeof value === 'string') {
@@ -226,10 +243,21 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   async saveWorkspace(layout?: unknown) {
     const state = get()
+    const serializedData: TerminalSerializedData[] = []
+    for (const session of state.sessions) {
+      const addon = serializeRegistry.get(session.id)
+      if (addon) {
+        try {
+          const content = addon.serialize()
+          if (content) serializedData.push({ id: session.id, content })
+        } catch { /* skip failed serialization */ }
+      }
+    }
     const workspace: WorkspaceState = {
       cwd: state.workspaceCwd,
       layout: layout ?? state.layout,
-      terminals: state.sessions
+      terminals: state.sessions,
+      serializedData
     }
     await window.smartShell.workspace.save(workspace)
     set({ layout: workspace.layout })
@@ -237,10 +265,21 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   async saveWorkspaceSnapshot(layout?: unknown) {
     const state = get()
+    const serializedData: TerminalSerializedData[] = []
+    for (const session of state.sessions) {
+      const addon = serializeRegistry.get(session.id)
+      if (addon) {
+        try {
+          const content = addon.serialize()
+          if (content) serializedData.push({ id: session.id, content })
+        } catch { /* skip failed serialization */ }
+      }
+    }
     const workspace: WorkspaceState = {
       cwd: state.workspaceCwd,
       layout: layout ?? state.layout,
-      terminals: state.sessions
+      terminals: state.sessions,
+      serializedData
     }
     const snapshot = await window.smartShell.workspace.saveSnapshot(workspace)
     set({ layout: workspace.layout })
@@ -279,6 +318,13 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
       })
       restoredSessions.push(restoredSession)
       idMap[savedSession.id] = restoredSession.id
+
+      const serializedEntry = snapshot.state.serializedData?.find(
+        (entry) => entry.id === savedSession.id
+      )
+      if (serializedEntry) {
+        pendingSerializedContent.set(restoredSession.id, serializedEntry.content)
+      }
     }
 
     set({

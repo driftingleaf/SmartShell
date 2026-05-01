@@ -7,6 +7,10 @@ import type { TerminalSession } from '@shared/types'
 
 const ansiPattern = /\x1b\[[0-9;?]*[ -/]*[@-~]/g
 
+const HIGH_WATERMARK = 100_000
+const LOW_WATERMARK = 5_000
+const RESUME_TIMEOUT_MS = 5_000
+
 export type PtySessionOptions = {
   id: string
   title: string
@@ -23,6 +27,9 @@ export class PtySession extends EventEmitter {
   private readonly pty: IPty
   private readonly logStream?: WriteStream
   private metadata: TerminalSession
+  private unackedChars = 0
+  private paused = false
+  private resumeTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(options: PtySessionOptions) {
     super()
@@ -65,7 +72,9 @@ export class PtySession extends EventEmitter {
     this.pty.onData((data) => {
       this.logStream?.write(data)
       this.updateCwdFromOutput(data)
+      this.unackedChars += data.length
       this.emit('data', data)
+      this.checkFlowControl()
     })
 
     this.pty.onExit(({ exitCode, signal }) => {
@@ -114,6 +123,46 @@ export class PtySession extends EventEmitter {
   }
 
   kill(): void {
+    if (this.resumeTimer !== undefined) clearTimeout(this.resumeTimer)
     this.pty.kill()
+  }
+
+  ack(chars: number): void {
+    this.unackedChars = Math.max(0, this.unackedChars - chars)
+    if (this.paused && this.unackedChars <= LOW_WATERMARK) {
+      this.resumeInternal()
+    }
+  }
+
+  pause(): void {
+    if (!this.paused) {
+      this.paused = true
+      this.pty.pause()
+    }
+  }
+
+  resume(): void {
+    if (this.paused) {
+      this.resumeInternal()
+    }
+  }
+
+  private checkFlowControl(): void {
+    if (!this.paused && this.unackedChars >= HIGH_WATERMARK) {
+      this.paused = true
+      this.pty.pause()
+      this.resumeTimer = setTimeout(() => {
+        if (this.paused) this.resumeInternal()
+      }, RESUME_TIMEOUT_MS)
+    }
+  }
+
+  private resumeInternal(): void {
+    this.paused = false
+    if (this.resumeTimer !== undefined) {
+      clearTimeout(this.resumeTimer)
+      this.resumeTimer = undefined
+    }
+    this.pty.resume()
   }
 }

@@ -68,6 +68,18 @@ export function registerIpcHandlers(
     }
   })
 
+  ipcMain.handle('terminal:ack', (_event, id: string, chars: number) => {
+    ptyManager.ack(id, chars)
+  })
+
+  ipcMain.handle('terminal:pause', (_event, id: string) => {
+    ptyManager.pauseSession(id)
+  })
+
+  ipcMain.handle('terminal:resume', (_event, id: string) => {
+    ptyManager.resumeSession(id)
+  })
+
   ipcMain.handle('profiles:list', () => {
     return profileManager.list()
   })

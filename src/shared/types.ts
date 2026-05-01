@@ -71,10 +71,16 @@ export type TerminalLogEntry = {
   modifiedAt: string
 }
 
+export type TerminalSerializedData = {
+  id: string
+  content: string
+}
+
 export type WorkspaceState = {
   cwd?: string
   layout?: unknown
   terminals: TerminalSession[]
+  serializedData?: TerminalSerializedData[]
 }
 
 export type WorkspaceSnapshot = {
@@ -97,6 +103,9 @@ export type SmartShellApi = {
     listLogs(): Promise<TerminalLogEntry[]>
     openLog(id: string): Promise<void>
     openLogFile(path: string): Promise<void>
+    ack(id: string, chars: number): Promise<void>
+    pause(id: string): Promise<void>
+    resume(id: string): Promise<void>
     onData(callback: (event: TerminalDataEvent) => void): () => void
     onCwdChange(callback: (event: TerminalCwdEvent) => void): () => void
     onExit(callback: (event: TerminalExitEvent) => void): () => void

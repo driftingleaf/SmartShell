@@ -23,6 +23,9 @@ const api: SmartShellApi = {
     listLogs: () => ipcRenderer.invoke('terminal:list-logs'),
     openLog: (id: string) => ipcRenderer.invoke('terminal:open-log', id),
     openLogFile: (path: string) => ipcRenderer.invoke('terminal:open-log-file', path),
+    ack: (id: string, chars: number) => ipcRenderer.invoke('terminal:ack', id, chars),
+    pause: (id: string) => ipcRenderer.invoke('terminal:pause', id),
+    resume: (id: string) => ipcRenderer.invoke('terminal:resume', id),
     onData: (callback: (event: TerminalDataEvent) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: TerminalDataEvent): void => callback(payload)
       ipcRenderer.on('terminal:data', listener)
